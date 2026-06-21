@@ -16,8 +16,11 @@ DEFAULT_CONFIG_PATHS = [
 DEFAULT_CONFIG = {
     "monitor_interface": "wlan1",
     "internet_interface": "wlan0",
+    "groq_api_key": "",
     "openrouter_api_key": "",
     "openrouter_model": "meta-llama/llama-3.2-3b-instruct:free",
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
     "language": "en",
     "whitelist": [],
     "alert_thresholds": {
@@ -80,12 +83,24 @@ class ConfigManager:
         return self.config.get("internet_interface", "wlan0")
 
     @property
+    def groq_api_key(self) -> str:
+        return self.config.get("groq_api_key", "")
+
+    @property
     def openrouter_api_key(self) -> str:
         return self.config.get("openrouter_api_key", "")
 
     @property
     def openrouter_model(self) -> str:
         return self.config.get("openrouter_model", "meta-llama/llama-3.2-3b-instruct:free")
+
+    @property
+    def telegram_bot_token(self) -> str:
+        return self.config.get("telegram_bot_token", "")
+
+    @property
+    def telegram_chat_id(self) -> str:
+        return str(self.config.get("telegram_chat_id", ""))
 
     @property
     def language(self) -> str:
@@ -128,10 +143,34 @@ class ConfigManager:
         self.config["internet_interface"] = Prompt.ask(
             "Internet interface", default=self.internet_interface
         )
+
+        console.print("\n[bold cyan]── AI Configuration ─────────────────────[/bold cyan]")
+        self.config["groq_api_key"] = Prompt.ask(
+            "Groq API key (llama-3.3-70b)", default=self.groq_api_key, password=True
+        )
         self.config["openrouter_api_key"] = Prompt.ask(
-            "OpenRouter API key (free tier)", default=self.openrouter_api_key, password=True
+            "OpenRouter API key (fallback, optional)", default=self.openrouter_api_key, password=True
         )
 
+        console.print("\n[bold cyan]── Telegram Alerts ──────────────────────[/bold cyan]")
+        if Confirm.ask("Configure Telegram alerts?", default=bool(self.telegram_bot_token)):
+            self.config["telegram_bot_token"] = Prompt.ask(
+                "Telegram bot token", default=self.telegram_bot_token, password=True
+            )
+            self.config["telegram_chat_id"] = Prompt.ask(
+                "Telegram chat ID", default=self.telegram_chat_id
+            )
+            # Test the connection
+            from modules.telegram_notifier import TelegramNotifier
+            notifier = TelegramNotifier(self)
+            if Confirm.ask("Send a test message now?", default=True):
+                ok = notifier.test_connection()
+                if ok:
+                    console.print("[green]✓ Test message sent successfully[/green]")
+                else:
+                    console.print("[red]✗ Failed — check token and chat ID[/red]")
+
+        console.print("\n[bold cyan]── General ───────────────────────────────[/bold cyan]")
         lang = Prompt.ask("Language", choices=["en", "ar"], default=self.language)
         self.config["language"] = lang
 

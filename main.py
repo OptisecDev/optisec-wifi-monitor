@@ -23,6 +23,8 @@ from modules.device_monitor import DeviceMonitor
 from modules.attack_detector import AttackDetector
 from modules.encryption_auditor import EncryptionAuditor
 from modules.ai_engine import AIEngine
+from modules.telegram_notifier import TelegramNotifier
+from modules.pdf_reporter import PDFReporter
 
 console = Console()
 
@@ -88,20 +90,29 @@ def init_components(monitor_iface: str, internet_iface: str, lang: str) -> dict:
         else:
             console.print(f"[green]✓  {monitor_iface} is in monitor mode[/green]")
 
-    device_monitor = DeviceMonitor(db, config, alert_mgr, monitor_iface, internet_iface)
+    device_monitor  = DeviceMonitor(db, config, alert_mgr, monitor_iface, internet_iface)
     attack_detector = AttackDetector(db, config, alert_mgr, monitor_iface)
-    enc_auditor = EncryptionAuditor(db, alert_mgr, monitor_iface)
-    ai_engine = AIEngine(db, config, config.language)
+    enc_auditor     = EncryptionAuditor(db, alert_mgr, monitor_iface)
+    ai_engine       = AIEngine(db, config, config.language)
+    pdf_reporter    = PDFReporter(db, config)
+
+    telegram = TelegramNotifier(config)
+    alert_mgr.register_callback(telegram.notify)
+    telegram.start()
+    if telegram.is_configured():
+        console.print("[green]✓  Telegram alerts enabled[/green]")
 
     return {
         'db': db,
         'config': config,
         'alert_mgr': alert_mgr,
         'iface_mgr': iface_mgr,
-        'device_monitor': device_monitor,
+        'device_monitor':  device_monitor,
         'attack_detector': attack_detector,
-        'enc_auditor': enc_auditor,
-        'ai_engine': ai_engine,
+        'enc_auditor':     enc_auditor,
+        'ai_engine':       ai_engine,
+        'pdf_reporter':    pdf_reporter,
+        'telegram':        telegram,
     }
 
 
