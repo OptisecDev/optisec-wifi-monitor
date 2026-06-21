@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Attacks{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i class="bi bi-exclamation-triangle-fill text-yellow"></i> Attack Detector</h1>
+    <p class="page-subtitle">Deauth flood, Evil Twin, and ARP poisoning detection</p>
+</div>
+
+<!-- Attack type cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card attack-type-card border-danger">
+            <div class="card-body text-center">
+                <div class="attack-icon text-danger"><i class="bi bi-wifi-off"></i></div>
+                <h6 class="mt-2">Deauth Flood</h6>
+                <div class="attack-count text-danger" id="cnt-deauth">0</div>
+                <small class="text-muted">Disconnection attacks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card attack-type-card border-warning">
+            <div class="card-body text-center">
+                <div class="attack-icon text-warning"><i class="bi bi-broadcast"></i></div>
+                <h6 class="mt-2">Evil Twin</h6>
+                <div class="attack-count text-warning" id="cnt-evil-twin">0</div>
+                <small class="text-muted">Rogue AP attacks</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card attack-type-card border-info">
+            <div class="card-body text-center">
+                <div class="attack-icon text-info"><i class="bi bi-arrow-left-right"></i></div>
+                <h6 class="mt-2">ARP Poisoning</h6>
+                <div class="attack-count text-info" id="cnt-arp">0</div>
+                <small class="text-muted">MITM attacks</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Table -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bell-fill text-red me-2"></i>Security Alerts</span>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm bg-dark text-white border-secondary" id="severityFilter" onchange="loadAlerts()">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadAlerts()">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-dark mb-0">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Details</th>
+                        <th>Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="alertsBody">
+                    <tr><td colspan="6" class="text-center text-muted py-4">Loading alerts...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Attack Log -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-exclamation-octagon-fill text-yellow me-2"></i>Attack Log
+        <span class="badge bg-secondary ms-2" id="attackCount">0</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-dark mb-0">
+                <thead>
+                    <tr>
+                        <th>Attack Type</th>
+                        <th>Severity</th>
+                        <th>Source MAC</th>
+                        <th>Target</th>
+                        <th>SSID</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="attacksBody">
+                    <tr><td colspan="7" class="text-center text-muted py-4">No attacks logged</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const SEV_BADGE = {
+        CRITICAL: 'bg-danger',
+        HIGH: 'bg-danger',
+        MEDIUM: 'bg-warning text-dark',
+        LOW: 'bg-info text-dark',
+        INFO: 'bg-secondary',
+    };
+    const SEV_ICON = {
+        CRITICAL: '🚨', HIGH: '⛔', MEDIUM: '⚠', LOW: 'ℹ', INFO: '•'
+    };
+
+    async function loadAlerts() {
+        const resp = await fetch('/api/alerts?limit=100');
+        const data = await resp.json();
+        const alerts = data.alerts || [];
+        const tbody = document.getElementById('alertsBody');
+        tbody.innerHTML = alerts.map(a => {
+            const sev = a.severity || 'INFO';
+            const badge = SEV_BADGE[sev] || 'bg-secondary';
+            const icon = SEV_ICON[sev] || '•';
+            const ts = (a.timestamp || '').substring(0, 16).replace('T', ' ');
+            const resolved = a.resolved ? '<span class="badge bg-secondary">Resolved</span>' :
+                `<button class="btn btn-xs btn-outline-success" onclick="resolveAlert(${a.id})">Resolve</button>`;
+            return `<tr class="${a.resolved ? 'opacity-50' : ''}">
+                <td><span class="badge ${badge}">${icon} ${sev}</span></td>
+                <td><code class="text-cyan small">${a.alert_type || ''}</code></td>
+                <td>${a.message || ''}</td>
+                <td class="text-muted small">${(a.details || '').substring(0, 60)}</td>
+                <td class="text-muted small">${ts}</td>
+                <td>${resolved}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="6" class="text-center text-muted py-4">No alerts found</td></tr>';
+    }
+
+    async function loadAttacks() {
+        const resp = await fetch('/api/attacks?limit=100');
+        const data = await resp.json();
+        const attacks = data.attacks || [];
+        document.getElementById('attackCount').textContent = attacks.length;
+
+        // Update type counters
+        const cnt = {DEAUTH_FLOOD: 0, EVIL_TWIN: 0, ARP_POISONING: 0};
+        attacks.forEach(a => { if (cnt[a.attack_type] !== undefined) cnt[a.attack_type]++; });
+        document.getElementById('cnt-deauth').textContent = cnt.DEAUTH_FLOOD;
+        document.getElementById('cnt-evil-twin').textContent = cnt.EVIL_TWIN;
+        document.getElementById('cnt-arp').textContent = cnt.ARP_POISONING;
+
+        const SEV_ATK = {CRITICAL: 'bg-danger', HIGH: 'bg-danger', MEDIUM: 'bg-warning text-dark', LOW: 'bg-info text-dark'};
+        const tbody = document.getElementById('attacksBody');
+        tbody.innerHTML = attacks.map(a => {
+            const badge = SEV_ATK[a.severity] || 'bg-secondary';
+            const ts = (a.timestamp || '').substring(0, 16).replace('T', ' ');
+            return `<tr>
+                <td><span class="badge bg-danger">${a.attack_type || ''}</span></td>
+                <td><span class="badge ${badge}">${a.severity || ''}</span></td>
+                <td><code class="text-red small">${a.source_mac || 'N/A'}</code></td>
+                <td>${a.target_mac || '—'}</td>
+                <td>${a.ssid || '—'}</td>
+                <td class="text-muted small">${(a.details || '').substring(0, 60)}</td>
+                <td class="text-muted small">${ts}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">No attacks logged</td></tr>';
+    }
+
+    async function resolveAlert(id) {
+        await fetch(`/api/alerts/${id}/resolve`, {method: 'POST'});
+        showToast('Alert resolved', 'success');
+        loadAlerts();
+    }
+
+    loadAlerts();
+    loadAttacks();
+    setInterval(() => { loadAlerts(); loadAttacks(); }, 10000);
+</script>
+{% endblock %}

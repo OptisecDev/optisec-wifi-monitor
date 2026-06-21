@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}AI Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i class="bi bi-robot text-purple"></i> AI Security Reports</h1>
+    <p class="page-subtitle">OpenRouter-powered anomaly detection and security analysis</p>
+</div>
+
+<!-- AI Query Panel -->
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-chat-dots-fill text-purple me-2"></i>Ask AI Security Assistant</div>
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control bg-dark text-white border-secondary"
+                   id="aiQuestion" placeholder="Ask a security question (e.g. 'What are the riskiest devices on my network?')">
+            <button class="btn btn-purple" onclick="askAI()" id="askBtn">
+                <i class="bi bi-send-fill"></i> Ask
+            </button>
+        </div>
+        <div id="aiAnswer" class="mt-3 d-none">
+            <div class="card bg-darker border-secondary">
+                <div class="card-body">
+                    <pre class="text-white-50 mb-0 small" id="aiAnswerText"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Report -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-bar-graph-fill text-cyan me-2"></i>Security Reports</span>
+        <button class="btn btn-sm btn-outline-purple" onclick="generateReport()" id="genBtn">
+            <i class="bi bi-plus-circle"></i> Generate Report
+        </button>
+    </div>
+    <div class="card-body p-0" id="reportsContainer">
+        <div class="text-center text-muted py-4">Loading reports...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function askAI() {
+        const q = document.getElementById('aiQuestion').value.trim();
+        if (!q) return;
+        const btn = document.getElementById('askBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        document.getElementById('aiAnswer').classList.remove('d-none');
+        document.getElementById('aiAnswerText').textContent = 'Thinking...';
+
+        try {
+            const resp = await fetch('/api/ai/ask', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: q})
+            });
+            const data = await resp.json();
+            document.getElementById('aiAnswerText').textContent = data.answer || data.message || 'No response';
+        } catch (e) {
+            document.getElementById('aiAnswerText').textContent = 'Error: ' + e.message;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send-fill"></i> Ask';
+        }
+    }
+
+    document.getElementById('aiQuestion').addEventListener('keydown', e => {
+        if (e.key === 'Enter') askAI();
+    });
+
+    async function generateReport() {
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating...';
+        try {
+            const resp = await fetch('/api/reports/generate', {method: 'POST'});
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                showToast('Report generated!', 'success');
+                loadReports();
+            } else {
+                showToast(data.message || 'Failed', 'danger');
+            }
+        } catch (e) {
+            showToast('Error generating report', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-plus-circle"></i> Generate Report';
+        }
+    }
+
+    async function loadReports() {
+        const resp = await fetch('/api/reports');
+        const data = await resp.json();
+        const reports = data.reports || [];
+        const container = document.getElementById('reportsContainer');
+
+        if (!reports.length) {
+            container.innerHTML = '<div class="text-center text-muted py-4">No reports yet. Click "Generate Report" to create one.</div>';
+            return;
+        }
+
+        container.innerHTML = reports.map((r, i) => {
+            const ts = (r.timestamp || '').substring(0, 16).replace('T', ' ');
+            const langBadge = r.language === 'ar'
+                ? '<span class="badge bg-warning text-dark">عربي</span>'
+                : '<span class="badge bg-info text-dark">EN</span>';
+            const typeBadge = `<span class="badge bg-secondary">${r.report_type || 'REPORT'}</span>`;
+            return `<div class="border-bottom border-secondary p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        ${typeBadge} ${langBadge}
+                        <span class="text-muted small">${ts}</span>
+                    </div>
+                    <button class="btn btn-xs btn-outline-secondary" onclick="toggleReport(${i})">
+                        <i class="bi bi-chevron-down" id="chevron-${i}"></i>
+                    </button>
+                </div>
+                <div id="report-body-${i}" class="d-none">
+                    <pre class="text-white-50 small mb-0 report-content" dir="${r.language === 'ar' ? 'rtl' : 'ltr'}">${escapeHtml(r.content || '')}</pre>
+                </div>
+                <div class="text-muted small report-preview-${i}">
+                    ${escapeHtml((r.content || '').substring(0, 150))}...
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleReport(i) {
+        const body = document.getElementById(`report-body-${i}`);
+        const preview = document.querySelector(`.report-preview-${i}`);
+        const chevron = document.getElementById(`chevron-${i}`);
+        if (body.classList.contains('d-none')) {
+            body.classList.remove('d-none');
+            preview.classList.add('d-none');
+            chevron.className = 'bi bi-chevron-up';
+        } else {
+            body.classList.add('d-none');
+            preview.classList.remove('d-none');
+            chevron.className = 'bi bi-chevron-down';
+        }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    loadReports();
+</script>
+{% endblock %}

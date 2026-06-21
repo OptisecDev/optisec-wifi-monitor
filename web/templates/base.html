@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optisec WiFi Monitor - {% block title %}Dashboard{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar d-flex flex-column">
+            <div class="sidebar-brand">
+                <div class="brand-icon"><i class="bi bi-shield-fill-check"></i></div>
+                <div class="brand-text">
+                    <span class="brand-name">OPTISEC</span>
+                    <span class="brand-sub">WiFi Monitor</span>
+                </div>
+            </div>
+            <hr class="sidebar-divider">
+            <ul class="nav flex-column sidebar-nav">
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'dashboard' %}active{% endif %}" href="/dashboard">
+                        <i class="bi bi-grid-fill"></i> <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">
+                        <i class="bi bi-devices"></i> <span>Devices</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'attacks' %}active{% endif %}" href="/attacks">
+                        <i class="bi bi-exclamation-triangle-fill"></i> <span>Attacks</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'encryption' %}active{% endif %}" href="/encryption">
+                        <i class="bi bi-lock-fill"></i> <span>Encryption</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">
+                        <i class="bi bi-robot"></i> <span>AI Reports</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot active"></span>
+                    <span class="status-text">Monitoring Active</span>
+                </div>
+                <div class="version-text">v1.0.0</div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div id="page-content" class="flex-grow-1">
+            <!-- Top navbar -->
+            <nav class="navbar top-navbar">
+                <div class="container-fluid">
+                    <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="d-flex align-items-center gap-3 ms-auto">
+                        <span class="text-muted small" id="currentTime"></span>
+                        <div class="alert-badge" id="alertBadge" title="Active Alerts">
+                            <i class="bi bi-bell-fill"></i>
+                            <span class="badge" id="alertCount">0</span>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page content -->
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

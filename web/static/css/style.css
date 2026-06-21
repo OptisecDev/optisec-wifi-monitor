@@ -1,0 +1,334 @@
+/* Optisec WiFi Monitor - Dashboard Styles */
+
+:root {
+    --bg-primary: #0a0f1e;
+    --bg-secondary: #0d1526;
+    --bg-card: #111827;
+    --bg-darker: #080c18;
+    --border-color: #1e293b;
+    --text-primary: #e2e8f0;
+    --text-muted: #64748b;
+    --cyan: #06b6d4;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --purple: #8b5cf6;
+    --blue: #3b82f6;
+    --sidebar-width: 240px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+    width: var(--sidebar-width);
+    min-height: 100vh;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+    transition: width 0.2s;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 16px 16px;
+    text-decoration: none;
+}
+.brand-icon {
+    font-size: 24px;
+    color: var(--cyan);
+}
+.brand-name {
+    display: block;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--cyan);
+    letter-spacing: 2px;
+}
+.brand-sub {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+.sidebar-divider {
+    border-color: var(--border-color);
+    margin: 0 16px 8px;
+}
+.sidebar-nav {
+    padding: 0 8px;
+    flex: 1;
+}
+.sidebar-nav .nav-link {
+    color: var(--text-muted);
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+}
+.sidebar-nav .nav-link:hover {
+    color: var(--text-primary);
+    background: rgba(6,182,212,0.08);
+}
+.sidebar-nav .nav-link.active {
+    color: var(--cyan);
+    background: rgba(6,182,212,0.12);
+    font-weight: 600;
+}
+.sidebar-nav .nav-link i { font-size: 16px; }
+
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+}
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+}
+.status-dot.active {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.status-text { font-size: 12px; color: var(--text-muted); }
+.version-text { font-size: 11px; color: var(--text-muted); }
+
+/* ---- Top Navbar ---- */
+.top-navbar {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 20px;
+    min-height: 52px;
+}
+.alert-badge {
+    position: relative;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+}
+.alert-badge .badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    font-size: 10px;
+    min-width: 18px;
+    height: 18px;
+    background: var(--red) !important;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+/* ---- Content Area ---- */
+.content-area {
+    padding: 24px;
+    min-height: calc(100vh - 52px);
+}
+.page-header {
+    margin-bottom: 24px;
+}
+.page-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ---- Cards ---- */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.card-body {
+    padding: 16px;
+}
+.bg-darker { background: var(--bg-darker) !important; }
+
+/* ---- Stat Cards ---- */
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.15s;
+}
+.stat-icon {
+    font-size: 28px;
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+}
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.stat-card-blue .stat-icon { background: rgba(59,130,246,0.15); color: var(--blue); }
+.stat-card-blue .stat-value { color: var(--blue); }
+.stat-card-red .stat-icon { background: rgba(239,68,68,0.15); color: var(--red); }
+.stat-card-red .stat-value { color: var(--red); }
+.stat-card-yellow .stat-icon { background: rgba(234,179,8,0.15); color: var(--yellow); }
+.stat-card-yellow .stat-value { color: var(--yellow); }
+.stat-card-green .stat-icon { background: rgba(34,197,94,0.15); color: var(--green); }
+.stat-card-green .stat-value { color: var(--green); }
+
+/* ---- Tables ---- */
+.table-dark {
+    background: transparent;
+    color: var(--text-primary);
+}
+.table-dark thead th {
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 12px;
+}
+.table-dark td {
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
+    font-size: 13px;
+    vertical-align: middle;
+}
+.table-dark tbody tr:hover { background: rgba(255,255,255,0.03); }
+.table-dark tbody tr:last-child td { border-bottom: none; }
+
+/* ---- Colors ---- */
+.text-cyan { color: var(--cyan) !important; }
+.text-green { color: var(--green) !important; }
+.text-red { color: var(--red) !important; }
+.text-yellow { color: var(--yellow) !important; }
+.text-purple { color: var(--purple) !important; }
+code.text-cyan { color: var(--cyan); font-size: 12px; }
+code.text-red { color: #f87171; font-size: 12px; }
+code.text-muted { color: var(--text-muted); font-size: 12px; }
+
+/* ---- Buttons ---- */
+.btn-outline-cyan {
+    color: var(--cyan);
+    border-color: var(--cyan);
+}
+.btn-outline-cyan:hover {
+    background: var(--cyan);
+    color: #000;
+}
+.btn-purple {
+    background: var(--purple);
+    color: #fff;
+    border: none;
+}
+.btn-purple:hover { background: #7c3aed; color: #fff; }
+.btn-outline-purple {
+    color: var(--purple);
+    border-color: var(--purple);
+}
+.btn-outline-purple:hover { background: var(--purple); color: #fff; }
+.btn-xs {
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+}
+
+/* ---- Attack type cards ---- */
+.attack-type-card {
+    background: var(--bg-card);
+}
+.attack-icon { font-size: 36px; }
+.attack-count { font-size: 36px; font-weight: 800; line-height: 1.1; }
+
+/* ---- Score bar ---- */
+.score-bar-wrap {
+    width: 60px;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.score-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+
+/* ---- Report content ---- */
+.report-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ---- Spinner ---- */
+.spinner-border { width: 1rem; height: 1rem; }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .sidebar { width: 60px; }
+    .sidebar .brand-text,
+    .sidebar .sidebar-nav span,
+    .sidebar .sidebar-footer .status-text,
+    .sidebar .sidebar-footer .version-text { display: none; }
+    .brand-icon { font-size: 20px; }
+    .content-area { padding: 12px; }
+}

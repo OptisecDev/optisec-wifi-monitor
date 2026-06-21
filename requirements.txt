@@ -1,0 +1,12 @@
+scapy>=2.5.0
+python-nmap>=0.7.1
+rich>=13.7.0
+flask>=3.0.0
+flask-socketio>=5.3.6
+requests>=2.31.0
+netifaces>=0.11.0
+click>=8.1.7
+psutil>=5.9.8
+manuf>=1.1.5
+schedule>=1.2.1
+eventlet>=0.35.2

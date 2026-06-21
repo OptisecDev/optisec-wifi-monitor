@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Devices{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title"><i class="bi bi-devices text-cyan"></i> Device Monitor</h1>
+    <p class="page-subtitle">All detected network devices with whitelist management</p>
+</div>
+
+<!-- Controls -->
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-outline-cyan" onclick="refreshDevices()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addWhitelistModal">
+            <i class="bi bi-plus-circle"></i> Add to Whitelist
+        </button>
+        <div class="ms-auto">
+            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary"
+                   id="deviceSearch" placeholder="Search devices..." oninput="filterDevices(this.value)">
+        </div>
+    </div>
+</div>
+
+<!-- Devices Table -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-list-ul me-2"></i>
+        Detected Devices <span class="badge bg-secondary ms-2" id="deviceCount">0</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-dark mb-0" id="devicesTable">
+                <thead>
+                    <tr>
+                        <th>MAC Address</th>
+                        <th>IP Address</th>
+                        <th>Hostname</th>
+                        <th>Vendor</th>
+                        <th>Status</th>
+                        <th>Signal</th>
+                        <th>Last Seen</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="devicesBody">
+                    <tr><td colspan="8" class="text-center text-muted py-4">Loading devices...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Whitelist Modal -->
+<div class="modal fade" id="addWhitelistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-shield-check text-green me-2"></i>Add to Whitelist</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">MAC Address</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary"
+                           id="whitelistMac" placeholder="AA:BB:CC:DD:EE:FF">
+                    <div class="form-text text-muted">Enter the MAC address to whitelist</div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="addToWhitelist()">Add to Whitelist</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Analysis Modal -->
+<div class="modal fade" id="analyzeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-robot text-purple me-2"></i>AI Device Analysis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="analyzeContent" class="text-muted">Loading analysis...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allDevices = [];
+
+    async function refreshDevices() {
+        const resp = await fetch('/api/devices');
+        const data = await resp.json();
+        allDevices = data.devices || [];
+        document.getElementById('deviceCount').textContent = allDevices.length;
+        renderDevices(allDevices);
+    }
+
+    function filterDevices(query) {
+        const q = query.toLowerCase();
+        const filtered = allDevices.filter(d =>
+            (d.mac || '').toLowerCase().includes(q) ||
+            (d.ip || '').toLowerCase().includes(q) ||
+            (d.vendor || '').toLowerCase().includes(q) ||
+            (d.hostname || '').toLowerCase().includes(q)
+        );
+        renderDevices(filtered);
+    }
+
+    function renderDevices(devices) {
+        const tbody = document.getElementById('devicesBody');
+        if (!devices.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No devices found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = devices.map(d => {
+            const wl = d.whitelisted;
+            const statusBadge = wl
+                ? '<span class="badge bg-success">Whitelisted</span>'
+                : '<span class="badge bg-warning text-dark">Unknown</span>';
+            const signal = d.signal_strength ? `${d.signal_strength} dBm` : 'N/A';
+            const lastSeen = d.last_seen ? d.last_seen.substring(0, 16).replace('T', ' ') : 'N/A';
+            const removeBtn = wl
+                ? `<button class="btn btn-xs btn-outline-danger" onclick="removeWhitelist('${d.mac}')">Remove</button>`
+                : `<button class="btn btn-xs btn-outline-success" onclick="quickWhitelist('${d.mac}')">Whitelist</button>`;
+            return `<tr>
+                <td><code class="text-cyan">${d.mac || 'N/A'}</code></td>
+                <td>${d.ip || 'N/A'}</td>
+                <td>${d.hostname || '—'}</td>
+                <td>${d.vendor || 'Unknown'}</td>
+                <td>${statusBadge}</td>
+                <td>${signal}</td>
+                <td class="text-muted small">${lastSeen}</td>
+                <td class="d-flex gap-1">
+                    ${removeBtn}
+                    <button class="btn btn-xs btn-outline-purple" onclick="analyzeDevice(${JSON.stringify(d).replace(/"/g, '&quot;')})">AI</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function quickWhitelist(mac) {
+        await fetch('/api/whitelist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mac})
+        });
+        showToast(`${mac} added to whitelist`, 'success');
+        refreshDevices();
+    }
+
+    async function removeWhitelist(mac) {
+        await fetch(`/api/whitelist/${mac}`, {method: 'DELETE'});
+        showToast(`${mac} removed from whitelist`, 'warning');
+        refreshDevices();
+    }
+
+    async function addToWhitelist() {
+        const mac = document.getElementById('whitelistMac').value.trim();
+        if (!mac) return;
+        await quickWhitelist(mac);
+        bootstrap.Modal.getInstance(document.getElementById('addWhitelistModal')).hide();
+    }
+
+    async function analyzeDevice(device) {
+        document.getElementById('analyzeContent').innerHTML = '<div class="spinner-border text-cyan" role="status"></div> Analyzing...';
+        const modal = new bootstrap.Modal(document.getElementById('analyzeModal'));
+        modal.show();
+        try {
+            const resp = await fetch('/api/ai/analyze-device', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(device)
+            });
+            const data = await resp.json();
+            document.getElementById('analyzeContent').innerHTML =
+                `<pre class="text-white-50 small">${data.analysis || data.message}</pre>`;
+        } catch (e) {
+            document.getElementById('analyzeContent').innerHTML = '<span class="text-danger">Analysis failed</span>';
+        }
+    }
+
+    refreshDevices();
+    setInterval(refreshDevices, 15000);
+</script>
+{% endblock %}
