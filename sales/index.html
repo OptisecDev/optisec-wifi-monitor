@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optisec WiFi Monitor — Professional Network Defense</title>
+<style>
+  :root {
+    --green:   #00ff88;
+    --cyan:    #00d4ff;
+    --red:     #ff3b5c;
+    --bg:      #04090f;
+    --bg2:     #080f1a;
+    --card:    #0a1628;
+    --border:  #132240;
+    --text:    #d0dce8;
+    --muted:   #4a6080;
+    --yellow:  #ffb800;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  body.ar { font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif; }
+
+  /* ── Scanlines overlay ───────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,136,0.015) 2px,
+      rgba(0,255,136,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── Nav ─────────────────────────────────────────────────── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(4,9,15,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-logo {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-shadow: 0 0 16px rgba(0,255,136,0.5);
+  }
+
+  .nav-logo span { color: var(--cyan); }
+
+  .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+
+  .lang-toggle {
+    display: flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .lang-btn {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+
+  .lang-btn.active {
+    background: var(--green);
+    color: #04090f;
+  }
+
+  .nav-cta {
+    padding: 0.45rem 1.2rem;
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .nav-cta:hover {
+    background: var(--green);
+    color: #04090f;
+    box-shadow: 0 0 20px rgba(0,255,136,0.4);
+  }
+
+  /* ── Hero ────────────────────────────────────────────────── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 7rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridPan 20s linear infinite;
+  }
+
+  @keyframes gridPan {
+    0%   { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+  }
+
+  .hero-glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .hero-content { position: relative; z-index: 1; max-width: 820px; }
+
+  .hero-badge {
+    display: inline-block;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--green);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    background: rgba(0,255,136,0.06);
+  }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    letter-spacing: -1px;
+  }
+
+  .hero h1 .accent { color: var(--green); }
+  .hero h1 .accent2 { color: var(--cyan); }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2.2rem;
+    background: var(--green);
+    color: #04090f;
+    font-weight: 800;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 30px rgba(0,255,136,0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 50px rgba(0,255,136,0.5);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    background: transparent;
+    color: var(--cyan);
+    font-weight: 600;
+    font-size: 1rem;
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(0,212,255,0.08);
+    box-shadow: 0 0 20px rgba(0,212,255,0.2);
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 3rem;
+    justify-content: center;
+    margin-top: 4rem;
+    flex-wrap: wrap;
+  }
+
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--green);
+    font-family: 'Courier New', monospace;
+  }
+  .stat-label { font-size: 0.8rem; color: var(--muted); letter-spacing: 1px; }
+
+  /* ── Terminal Demo ───────────────────────────────────────── */
+  .terminal-section {
+    padding: 5rem 2rem;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .terminal-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #020810;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,255,136,0.1), 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .terminal-bar {
+    background: var(--card);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #28ca41; }
+
+  .terminal-title {
+    margin-left: auto; margin-right: auto;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'Courier New', monospace;
+  }
+
+  .terminal-body {
+    padding: 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.9;
+  }
+
+  .t-prompt { color: var(--green); }
+  .t-cmd    { color: var(--text); }
+  .t-ok     { color: var(--green); }
+  .t-warn   { color: var(--yellow); }
+  .t-err    { color: var(--red); }
+  .t-info   { color: var(--cyan); }
+  .t-dim    { color: var(--muted); }
+  .t-blink  { animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Section ─────────────────────────────────────────────── */
+  section { padding: 6rem 2rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 0.75rem;
+  }
+
+  .section-title {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 800;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+  }
+
+  .section-sub {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 560px;
+    margin-bottom: 3.5rem;
+  }
+
+  /* ── Features grid ───────────────────────────────────────── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--green), transparent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(0,255,136,0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 20px rgba(0,255,136,0.05);
+  }
+
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .feature-card h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #e8f0f8;
+  }
+
+  .feature-card p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-top: 0.75rem;
+  }
+
+  .tag-green  { background: rgba(0,255,136,0.12); color: var(--green); }
+  .tag-cyan   { background: rgba(0,212,255,0.12); color: var(--cyan); }
+  .tag-yellow { background: rgba(255,184,0,0.12); color: var(--yellow); }
+  .tag-red    { background: rgba(255,59,92,0.12);  color: var(--red); }
+
+  /* ── Screenshots ─────────────────────────────────────────── */
+  .screenshots { background: var(--bg2); }
+
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .screen-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .screen-preview {
+    background: #020810;
+    padding: 1.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    border-bottom: 1px solid var(--border);
+    min-height: 160px;
+  }
+
+  .screen-info { padding: 1.25rem; }
+  .screen-info h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem; }
+  .screen-info p  { font-size: 0.82rem; color: var(--muted); }
+
+  /* ── Pricing ─────────────────────────────────────────────── */
+  .pricing-wrap {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .price-card {
+    background: var(--card);
+    border: 1px solid rgba(0,255,136,0.35);
+    border-radius: 16px;
+    padding: 3rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,255,136,0.08);
+  }
+
+  .price-card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 10%; right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+  }
+
+  .price-badge {
+    display: inline-block;
+    background: var(--green);
+    color: #04090f;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 0.3rem 1rem;
+    border-radius: 50px;
+    margin-bottom: 1.5rem;
+  }
+
+  .price-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+
+  .price-desc {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+
+  .price-amount {
+    margin-bottom: 2rem;
+  }
+
+  .price-currency {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--green);
+    vertical-align: top;
+    line-height: 3rem;
+  }
+
+  .price-number {
+    font-size: 4.5rem;
+    font-weight: 900;
+    color: var(--green);
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 30px rgba(0,255,136,0.4);
+    line-height: 1;
+  }
+
+  .price-period {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+  }
+
+  .price-features {
+    list-style: none;
+    text-align: left;
+    margin-bottom: 2rem;
+  }
+
+  .price-features li {
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .price-features li:last-child { border-bottom: none; }
+
+  .price-features .check { color: var(--green); font-size: 1rem; flex-shrink: 0; }
+
+  .btn-buy {
+    display: block;
+    width: 100%;
+    padding: 1.1rem;
+    background: var(--green);
+    color: #04090f;
+    font-weight: 900;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    box-shadow: 0 0 30px rgba(0,255,136,0.3);
+    margin-bottom: 1rem;
+  }
+
+  .btn-buy:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 60px rgba(0,255,136,0.5);
+  }
+
+  .price-note {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .price-guarantee {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+  }
+
+  /* ── FAQ ─────────────────────────────────────────────────── */
+  .faq-list { max-width: 720px; }
+
+  .faq-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    background: var(--card);
+  }
+
+  .faq-q {
+    padding: 1.1rem 1.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    font-size: 0.95rem;
+  }
+
+  .faq-q:hover { color: var(--green); }
+
+  .faq-arrow { color: var(--green); transition: transform 0.2s; font-size: 0.8rem; }
+  .faq-item.open .faq-arrow { transform: rotate(90deg); }
+
+  .faq-a {
+    display: none;
+    padding: 0 1.25rem 1.1rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.7;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .faq-item.open .faq-a { display: block; }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+
+  .footer-logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-shadow: 0 0 16px rgba(0,255,136,0.4);
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-tagline {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .footer-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--green); }
+
+  .footer-copy {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  /* ── Divider ─────────────────────────────────────────────── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0;
+  }
+
+  /* ── RTL / Arabic overrides ──────────────────────────────── */
+  html[dir="rtl"] .feature-card::before {
+    background: linear-gradient(270deg, var(--green), transparent);
+  }
+
+  html[dir="rtl"] .section-sub { margin-left: auto; margin-right: 0; }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    nav { padding: 0.75rem 1rem; }
+    section { padding: 4rem 1rem; }
+    .price-card { padding: 2rem 1.5rem; }
+    .price-number { font-size: 3.5rem; }
+    .hero-stats { gap: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">OPTISEC<span>://</span>WIFI</div>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('ar')">AR</button>
+    </div>
+    <a href="#pricing" class="nav-cta" data-en="Buy Now — $199" data-ar="اشتر الآن — 199$">Buy Now — $199</a>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-badge" data-en="⚡ Professional Network Defense Tool" data-ar="⚡ أداة دفاع شبكي احترافية">⚡ Professional Network Defense Tool</div>
+
+    <h1>
+      <span data-en="Protect Your WiFi<br><span class='accent'>Before</span> Attackers <span class='accent2'>Strike</span>"
+            data-ar="احمِ شبكتك اللاسلكية<br><span class='accent'>قبل</span> أن يضرب <span class='accent2'>المهاجمون</span>">
+        Protect Your WiFi<br><span class="accent">Before</span> Attackers <span class="accent2">Strike</span>
+      </span>
+    </h1>
+
+    <p class="hero-sub"
+       data-en="Optisec WiFi Monitor is a real-time network defense platform for security professionals. Detect attacks, audit encryption, track devices — all from a single terminal."
+       data-ar="Optisec WiFi Monitor منصة دفاع شبكي فورية لمحترفي الأمن السيبراني. اكتشف الهجمات، راجع التشفير، تتبع الأجهزة — كل ذلك من طرفية واحدة.">
+      Optisec WiFi Monitor is a real-time network defense platform for security professionals. Detect attacks, audit encryption, track devices — all from a single terminal.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#pricing" class="btn-primary"
+         data-en="🛒 Get Optisec — $199" data-ar="🛒 احصل على Optisec — 199$">
+        🛒 Get Optisec — $199
+      </a>
+      <a href="#features" class="btn-secondary"
+         data-en="↓ See Features" data-ar="↓ استعرض المزايا">
+        ↓ See Features
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">12+</div>
+        <div class="stat-label" data-en="Attack Signatures" data-ar="توقيعات هجوم">Attack Signatures</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">∞</div>
+        <div class="stat-label" data-en="Devices Monitored" data-ar="أجهزة مراقبة">Devices Monitored</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">AI</div>
+        <div class="stat-label" data-en="Threat Analysis" data-ar="تحليل التهديدات">Threat Analysis</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">v1.0</div>
+        <div class="stat-label" data-en="BlackArch Linux" data-ar="بلاك آرش لينكس">BlackArch Linux</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Terminal Demo ─────────────────────────────────────────── -->
+<div class="terminal-section">
+  <div class="terminal-wrap">
+    <div class="terminal-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="terminal-title">optisec@blackarch:~</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">root@blackarch</span><span class="t-dim">:</span><span class="t-info">~/optisec</span><span class="t-dim">$</span> <span class="t-cmd">sudo python main.py tui -m wlan1 -i wlan0</span></div>
+      <div class="t-ok">✓  License verified: LICENSED TO: Ehsan  |  OPS-34AE-9729-82BD-20C2</div>
+      <div class="t-ok">✓  wlan1 is in monitor mode</div>
+      <div class="t-ok">✓  DeviceMonitor started</div>
+      <div class="t-ok">✓  AttackDetector started</div>
+      <div class="t-ok">✓  EncryptionAuditor started</div>
+      <div class="t-ok">✓  AIEngine started  <span class="t-dim">[Groq llama-3.3-70b-versatile]</span></div>
+      <div>&nbsp;</div>
+      <div><span class="t-warn">⚠  [MEDIUM] NEW_DEVICE — EC:75:0C:95:A6:02  TP-Link Router detected</span></div>
+      <div><span class="t-err">🚨 [CRITICAL] DEAUTH_FLOOD — AA:BB:CC:11:22:33 sending 847 frames/60s</span></div>
+      <div><span class="t-info">ℹ  [INFO] WPA3 network detected — Security score: 95/100</span></div>
+      <div><span class="t-ok">✓  PDF report saved: reports/2026-06-22_14-30.pdf</span></div>
+      <div><span class="t-dim">AI &gt; Groq analysis complete — 3 high-risk devices identified<span class="t-blink">▌</span></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Features ──────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="section-label" data-en="What You Get" data-ar="ما ستحصل عليه">What You Get</div>
+    <h2 class="section-title"
+        data-en="Enterprise-Grade Defense.<br>Terminal Native."
+        data-ar="دفاع بمستوى المؤسسات.<br>مصمم للطرفية.">
+      Enterprise-Grade Defense.<br>Terminal Native.
+    </h2>
+    <p class="section-sub"
+       data-en="Every feature is built for offensive security researchers and network defenders who live in the terminal."
+       data-ar="كل ميزة مُصممة لباحثي الأمن الهجومي والمدافعين عن الشبكات الذين يعيشون في الطرفية.">
+      Every feature is built for offensive security researchers and network defenders who live in the terminal.
+    </p>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <h3 data-en="Real-Time Attack Detection" data-ar="كشف الهجمات الفوري">Real-Time Attack Detection</h3>
+        <p data-en="Detects Deauth floods, Evil Twin APs, ARP spoofing, PMKID attacks, and Rogue access points the moment they appear on the network." data-ar="يكتشف فيضانات إلغاء المصادقة، نقاط الوصول المزدوجة، انتحال ARP، وهجمات PMKID فور ظهورها على الشبكة.">
+          Detects Deauth floods, Evil Twin APs, ARP spoofing, PMKID attacks, and Rogue access points the moment they appear on the network.
+        </p>
+        <span class="tag tag-red" data-en="CRITICAL DEFENSE" data-ar="دفاع حرج">CRITICAL DEFENSE</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔒</span>
+        <h3 data-en="Encryption Auditor" data-ar="مدقق التشفير">Encryption Auditor</h3>
+        <p data-en="Scans all nearby networks for WPA2/WPA3 compliance, WPS vulnerabilities, and PMF status. Assigns a security score 0–100 for every SSID." data-ar="يفحص جميع الشبكات المجاورة لمطابقة WPA2/WPA3، ثغرات WPS، وحالة PMF. يعطي كل SSID درجة أمان من 0 إلى 100.">
+          Scans all nearby networks for WPA2/WPA3 compliance, WPS vulnerabilities, and PMF status. Assigns a security score 0–100 for every SSID.
+        </p>
+        <span class="tag tag-cyan" data-en="PASSIVE SCAN" data-ar="فحص سلبي">PASSIVE SCAN</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3 data-en="AI Threat Analysis" data-ar="تحليل التهديدات بالذكاء الاصطناعي">AI Threat Analysis</h3>
+        <p data-en="Powered by Groq llama-3.3-70b-versatile. Generates bilingual (Arabic/English) threat summaries, per-device risk scores 0–100, and actionable recommendations." data-ar="مدعوم بـ Groq llama-3.3-70b-versatile. يولد ملخصات تهديدات ثنائية اللغة (عربي/إنجليزي)، ودرجات مخاطر لكل جهاز، وتوصيات قابلة للتنفيذ.">
+          Powered by Groq llama-3.3-70b-versatile. Generates bilingual (Arabic/English) threat summaries, per-device risk scores 0–100, and actionable recommendations.
+        </p>
+        <span class="tag tag-yellow" data-en="GROQ POWERED" data-ar="مدعوم بـ Groq">GROQ POWERED</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🖥️</span>
+        <h3 data-en="Rich TUI Dashboard" data-ar="لوحة تحكم طرفية متقدمة">Rich TUI Dashboard</h3>
+        <p data-en="6-panel terminal dashboard: live alerts, device table, attack log, network selector, encryption audit, and AI insights. Updates every second." data-ar="لوحة تحكم طرفية بـ 6 نوافذ: تنبيهات مباشرة، جدول الأجهزة، سجل الهجمات، محدد الشبكة، مراجعة التشفير، ورؤى الذكاء الاصطناعي. تحديث كل ثانية.">
+          6-panel terminal dashboard: live alerts, device table, attack log, network selector, encryption audit, and AI insights. Updates every second.
+        </p>
+        <span class="tag tag-green" data-en="REAL-TIME" data-ar="فوري">REAL-TIME</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📱</span>
+        <h3 data-en="Telegram Instant Alerts" data-ar="تنبيهات تيليغرام الفورية">Telegram Instant Alerts</h3>
+        <p data-en="CRITICAL and HIGH attacks fire instantly to your Telegram bot. MEDIUM alerts batch every 5 minutes. Never miss a threat even when away from terminal." data-ar="تُرسل الهجمات الحرجة والعالية فوراً إلى بوت تيليغرام الخاص بك. تنبيهات MEDIUM تُجمَّع كل 5 دقائق. لا تفوتك أي تهديدات حتى بعيداً عن الطرفية.">
+          CRITICAL and HIGH attacks fire instantly to your Telegram bot. MEDIUM alerts batch every 5 minutes. Never miss a threat even when away from terminal.
+        </p>
+        <span class="tag tag-cyan" data-en="INSTANT PUSH" data-ar="إشعار فوري">INSTANT PUSH</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📄</span>
+        <h3 data-en="PDF Session Reports" data-ar="تقارير PDF للجلسة">PDF Session Reports</h3>
+        <p data-en="Auto-generates professional branded PDF reports: session summary, devices table, full alerts log, and encryption audit. Press R in TUI to trigger instantly." data-ar="يولد تلقائياً تقارير PDF احترافية بالعلامة التجارية: ملخص الجلسة، جدول الأجهزة، سجل التنبيهات الكامل، ومراجعة التشفير. اضغط R في لوحة التحكم لتشغيلها فوراً.">
+          Auto-generates professional branded PDF reports: session summary, devices table, full alerts log, and encryption audit. Press R in TUI to trigger instantly.
+        </p>
+        <span class="tag tag-green" data-en="ONE KEYPRESS" data-ar="ضغطة واحدة">ONE KEYPRESS</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <h3 data-en="Multi-Network Selector" data-ar="محدد الشبكات المتعددة">Multi-Network Selector</h3>
+        <p data-en="See all detected SSIDs color-coded by security score. Navigate with N/P keys, instantly filter the dashboard to any network for focused analysis." data-ar="اعرض جميع SSIDs المكتشفة مرمزة بالألوان وفق درجة الأمان. تنقل بمفاتيح N/P، وصفِّ لوحة التحكم لأي شبكة لتحليل مركّز.">
+          See all detected SSIDs color-coded by security score. Navigate with N/P keys, instantly filter the dashboard to any network for focused analysis.
+        </p>
+        <span class="tag tag-cyan" data-en="MULTI-NETWORK" data-ar="متعدد الشبكات">MULTI-NETWORK</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔑</span>
+        <h3 data-en="License & OUI Vendor ID" data-ar="ترخيص ومعرّف بائع OUI">License & OUI Vendor ID</h3>
+        <p data-en="Machine-bound license key generated on first run. Static OUI table covers Apple, Samsung, Huawei, Cisco, TP-Link, Alfa, Intel with manuf library fallback." data-ar="مفتاح ترخيص مرتبط بالجهاز يُولَّد عند أول تشغيل. جدول OUI يغطي Apple، Samsung، Huawei، Cisco، TP-Link، Alfa، Intel مع مكتبة manuf كخيار بديل.">
+          Machine-bound license key generated on first run. Static OUI table covers Apple, Samsung, Huawei, Cisco, TP-Link, Alfa, Intel with manuf library fallback.
+        </p>
+        <span class="tag tag-yellow" data-en="ANTI-PIRACY" data-ar="حماية من القرصنة">ANTI-PIRACY</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ── Screenshots ───────────────────────────────────────────── -->
+<section class="screenshots" id="screenshots">
+  <div class="container">
+    <div class="section-label" data-en="Dashboard Preview" data-ar="معاينة لوحة التحكم">Dashboard Preview</div>
+    <h2 class="section-title"
+        data-en="Everything Visible.<br>Nothing Hidden."
+        data-ar="كل شيء مرئي.<br>لا شيء مخفي.">
+      Everything Visible.<br>Nothing Hidden.
+    </h2>
+    <p class="section-sub"
+       data-en="Six live panels built for terminal warriors. Runs full-screen in any 220×50 terminal."
+       data-ar="ست نوافذ مباشرة مصممة لمحاربي الطرفية. تعمل بملء الشاشة في أي طرفية 220×50.">
+      Six live panels built for terminal warriors. Runs full-screen in any 220×50 terminal.
+    </p>
+
+    <div class="screen-grid">
+
+      <div class="screen-card">
+        <div class="screen-preview">
+          <div style="color:#00ff88;font-weight:700;">┌─ Devices (8) ──────────────────┐</div>
+          <div><span style="color:#00d4ff;">EC:75:0C:95:A6:02</span> <span style="color:#6b7fa0;">192.168.1.1</span>  <span style="color:#fff;">TP-Link</span>  <span style="color:#00ff88;">✓ OK</span></div>
+          <div><span style="color:#00d4ff;">B8:27:EB:12:34:56</span> <span style="color:#6b7fa0;">192.168.1.5</span>  <span style="color:#fff;">Samsung</span>  <span style="color:#ffb800;">? Unknown</span></div>
+          <div><span style="color:#00d4ff;">AA:BB:CC:11:22:33</span> <span style="color:#6b7fa0;">192.168.1.7</span>  <span style="color:#fff;">Unknown</span>  <span style="color:#ff3b5c;">⚠ Alert</span></div>
+          <div><span style="color:#00d4ff;">44:2A:60:FF:EE:DD</span> <span style="color:#6b7fa0;">192.168.1.9</span>  <span style="color:#fff;">Apple   </span>  <span style="color:#00ff88;">✓ OK</span></div>
+          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
+        </div>
+        <div class="screen-info">
+          <h4 data-en="Device Monitor Panel" data-ar="نافذة مراقبة الأجهزة">Device Monitor Panel</h4>
+          <p data-en="Real-time device table. Green = whitelisted, yellow = unknown, red = has active alerts." data-ar="جدول الأجهزة الفوري. أخضر = في القائمة البيضاء، أصفر = غير معروف، أحمر = له تنبيهات نشطة.">Real-time device table. Green = whitelisted, yellow = unknown, red = has active alerts.</p>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-preview">
+          <div style="color:#ff3b5c;font-weight:700;">┌─ Live Alerts ──────────────────┐</div>
+          <div><span style="color:#6b7fa0;">14:32</span> <span style="color:#ff3b5c;font-weight:700;">[CRITICAL] DEAUTH_FLOOD</span></div>
+          <div><span style="color:#6b7fa0;">     MAC: AA:BB:CC:11:22:33</span></div>
+          <div><span style="color:#ffb800;">14:30</span> <span style="color:#ffb800;">[MEDIUM]   WPS_ENABLED</span></div>
+          <div><span style="color:#6b7fa0;">     MyNetwork — vulnerability</span></div>
+          <div><span style="color:#00ff88;">14:28</span> <span style="color:#00ff88;">[INFO]     NEW_DEVICE</span></div>
+          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
+        </div>
+        <div class="screen-info">
+          <h4 data-en="Live Alerts Panel" data-ar="نافذة التنبيهات المباشرة">Live Alerts Panel</h4>
+          <p data-en="Real-time alert feed with Time | Type | MAC | Details. Red = CRITICAL, yellow = MEDIUM, green = INFO." data-ar="تدفق تنبيهات مباشر مع الوقت | النوع | MAC | التفاصيل. أحمر = حرج، أصفر = متوسط، أخضر = معلومة.">Real-time alert feed with Time | Type | MAC | Details. Red = CRITICAL, yellow = MEDIUM, green = INFO.</p>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-preview">
+          <div style="color:#a855f7;font-weight:700;">┌─ AI Threat Analysis ───────────┐</div>
+          <div><span style="color:#6b7fa0;">Network risk avg: </span><span style="color:#ffb800;font-weight:700;">43/100</span></div>
+          <div><span style="color:#6b7fa0;">Top risk devices:</span></div>
+          <div>  <span style="color:#00d4ff;">AA:BB:CC:11:22:33</span> <span style="color:#ff3b5c;font-weight:700;">risk=15</span></div>
+          <div>  <span style="color:#00d4ff;">B8:27:EB:12:34:56</span> <span style="color:#ffb800;font-weight:700;">risk=45</span></div>
+          <div><span style="color:#6b7fa0;">Groq: 3 critical patterns found</span></div>
+          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
+        </div>
+        <div class="screen-info">
+          <h4 data-en="AI Threat Analysis Panel" data-ar="نافذة تحليل التهديدات بالذكاء الاصطناعي">AI Threat Analysis Panel</h4>
+          <p data-en="Rule-based device risk scores plus Groq LLM threat summary. Updated every 5 minutes or on demand." data-ar="درجات مخاطر الأجهزة المستندة إلى القواعد بالإضافة إلى ملخص تهديدات Groq LLM. يُحدَّث كل 5 دقائق أو عند الطلب.">Rule-based device risk scores plus Groq LLM threat summary. Updated every 5 minutes or on demand.</p>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-preview">
+          <div style="color:#0070ff;font-weight:700;">┌─ Networks ▶ MyHome ─ n/p=select ┐</div>
+          <div><span style="color:#00d4ff;">▶</span> <span style="color:#00ff88;">MyHome     </span> <span style="color:#00ff88;">WPA2-PSK</span> <span style="color:#ffb800;">75</span> <span style="color:#00ff88;">N</span></div>
+          <div>  <span style="color:#ffb800;">Office_5G  </span> <span style="color:#00d4ff;">WPA2    </span> <span style="color:#ffb800;">55</span> <span style="color:#ff3b5c;">Y</span></div>
+          <div>  <span style="color:#ff3b5c;">(hidden)   </span> <span style="color:#ff3b5c;">OPEN    </span> <span style="color:#ff3b5c;">10</span> <span style="color:#00ff88;">N</span></div>
+          <div>  <span style="color:#00ff88;">SecureNet  </span> <span style="color:#00ff88;">WPA3    </span> <span style="color:#00ff88;">95</span> <span style="color:#00ff88;">N</span></div>
+          <div style="color:#6b7fa0;">└──────────────────────────────────┘</div>
+        </div>
+        <div class="screen-info">
+          <h4 data-en="Multi-Network Selector" data-ar="محدد الشبكات المتعددة">Multi-Network Selector</h4>
+          <p data-en="All detected SSIDs with encryption, score, and WPS. Color-coded: green = safe, yellow = warning, red = threat." data-ar="جميع SSIDs المكتشفة مع التشفير والدرجة وWPS. مرمزة بالألوان: أخضر = آمن، أصفر = تحذير، أحمر = تهديد.">All detected SSIDs with encryption, score, and WPS. Color-coded: green = safe, yellow = warning, red = threat.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ── Pricing ───────────────────────────────────────────────── -->
+<section id="pricing">
+  <div class="container">
+    <div style="text-align:center; margin-bottom: 3.5rem;">
+      <div class="section-label" data-en="Simple Pricing" data-ar="سعر بسيط">Simple Pricing</div>
+      <h2 class="section-title"
+          data-en="One Tool. One Price. Forever."
+          data-ar="أداة واحدة. سعر واحد. للأبد.">
+        One Tool. One Price. Forever.
+      </h2>
+      <p class="section-sub" style="margin: 0 auto;"
+         data-en="No subscriptions. No renewals. Pay once, own forever."
+         data-ar="لا اشتراكات. لا تجديدات. ادفع مرة واحدة، امتلكه للأبد.">
+        No subscriptions. No renewals. Pay once, own forever.
+      </p>
+    </div>
+
+    <div class="pricing-wrap">
+      <div class="price-card">
+        <div class="price-badge" data-en="LIFETIME LICENSE" data-ar="ترخيص مدى الحياة">LIFETIME LICENSE</div>
+        <div class="price-name" data-en="Optisec WiFi Monitor" data-ar="Optisec WiFi Monitor">Optisec WiFi Monitor</div>
+        <div class="price-desc"
+             data-en="Professional network defense for BlackArch Linux"
+             data-ar="دفاع شبكي احترافي لـ BlackArch Linux">
+          Professional network defense for BlackArch Linux
+        </div>
+
+        <div class="price-amount">
+          <span class="price-currency">$</span>
+          <span class="price-number">199</span>
+          <div class="price-period" data-en="one-time payment — no subscription" data-ar="دفعة واحدة — بدون اشتراك">one-time payment — no subscription</div>
+        </div>
+
+        <ul class="price-features">
+          <li><span class="check">✓</span> <span data-en="Full source code (Python)" data-ar="الكود المصدري الكامل (Python)">Full source code (Python)</span></li>
+          <li><span class="check">✓</span> <span data-en="Real-time attack detection (12+ signatures)" data-ar="كشف الهجمات الفوري (أكثر من 12 توقيعاً)">Real-time attack detection (12+ signatures)</span></li>
+          <li><span class="check">✓</span> <span data-en="AI analysis via Groq llama-3.3-70b" data-ar="تحليل ذكاء اصطناعي عبر Groq llama-3.3-70b">AI analysis via Groq llama-3.3-70b</span></li>
+          <li><span class="check">✓</span> <span data-en="Rich TUI + Flask web dashboard" data-ar="لوحة تحكم TUI وFlask للويب">Rich TUI + Flask web dashboard</span></li>
+          <li><span class="check">✓</span> <span data-en="Telegram instant alerts" data-ar="تنبيهات تيليغرام الفورية">Telegram instant alerts</span></li>
+          <li><span class="check">✓</span> <span data-en="PDF session reports (reportlab)" data-ar="تقارير PDF للجلسة (reportlab)">PDF session reports (reportlab)</span></li>
+          <li><span class="check">✓</span> <span data-en="Arabic &amp; English language support" data-ar="دعم اللغة العربية والإنجليزية">Arabic &amp; English language support</span></li>
+          <li><span class="check">✓</span> <span data-en="Machine-bound license key" data-ar="مفتاح ترخيص مرتبط بالجهاز">Machine-bound license key</span></li>
+          <li><span class="check">✓</span> <span data-en="Lifetime updates" data-ar="تحديثات مدى الحياة">Lifetime updates</span></li>
+          <li><span class="check">✓</span> <span data-en="Email support" data-ar="دعم عبر البريد الإلكتروني">Email support</span></li>
+        </ul>
+
+        <a href="mailto:ahssanali84.syber@gmail.com?subject=Optisec WiFi Monitor — Purchase Request&body=I'd like to purchase Optisec WiFi Monitor for $199."
+           class="btn-buy"
+           data-en="🛒 Buy Now — $199" data-ar="🛒 اشتر الآن — 199$">
+          🛒 Buy Now — $199
+        </a>
+
+        <div class="price-note"
+             data-en="Secure payment via email invoice. License delivered within 24h."
+             data-ar="دفع آمن عبر فاتورة بريد إلكتروني. يُسلَّم الترخيص خلال 24 ساعة.">
+          Secure payment via email invoice. License delivered within 24h.
+        </div>
+
+        <div class="price-guarantee">
+          <span>🛡️</span>
+          <span data-en="7-day money-back guarantee — no questions asked" data-ar="ضمان استرداد الأموال خلال 7 أيام — بدون أسئلة">7-day money-back guarantee — no questions asked</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ── FAQ ───────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="section-label" data-en="FAQ" data-ar="الأسئلة الشائعة">FAQ</div>
+    <h2 class="section-title" data-en="Common Questions" data-ar="الأسئلة الشائعة">Common Questions</h2>
+
+    <div class="faq-list">
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span data-en="What hardware do I need?" data-ar="ما هي الأجهزة التي أحتاجها؟">What hardware do I need?</span>
+          <span class="faq-arrow">▶</span>
+        </div>
+        <div class="faq-a" data-en="You need a Linux machine running BlackArch (or Arch-based distro), and a WiFi adapter that supports monitor mode — such as the Alfa AWUS036ACH. A secondary interface for internet connectivity is recommended." data-ar="تحتاج إلى جهاز Linux يعمل بـ BlackArch (أو توزيعة مبنية على Arch)، ومحول WiFi يدعم وضع المراقبة — مثل Alfa AWUS036ACH. يُوصى بواجهة ثانية للاتصال بالإنترنت.">
+          You need a Linux machine running BlackArch (or Arch-based distro), and a WiFi adapter that supports monitor mode — such as the Alfa AWUS036ACH. A secondary interface for internet connectivity is recommended.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span data-en="Is a Groq API key included?" data-ar="هل مفتاح Groq API مضمّن؟">Is a Groq API key included?</span>
+          <span class="faq-arrow">▶</span>
+        </div>
+        <div class="faq-a" data-en="No — Groq offers a generous free tier. Sign up at groq.com, generate a free API key, and paste it into the config wizard (python main.py config). The tool works fully offline without one." data-ar="لا — تقدم Groq طبقة مجانية سخية. سجّل على groq.com، ولّد مفتاح API مجانياً، والصقه في معالج الإعداد (python main.py config). الأداة تعمل بشكل كامل بدون اتصال بالإنترنت أيضاً.">
+          No — Groq offers a generous free tier. Sign up at groq.com, generate a free API key, and paste it into the config wizard (python main.py config). The tool works fully offline without one.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span data-en="Can I use this for penetration testing?" data-ar="هل يمكنني استخدامه في اختبار الاختراق؟">Can I use this for penetration testing?</span>
+          <span class="faq-arrow">▶</span>
+        </div>
+        <div class="faq-a" data-en="Optisec is a passive defense tool — it monitors and alerts, it does not attack. It is suitable for authorized network security audits, home lab monitoring, and corporate WiFi defense. Always ensure you have authorization to monitor any network." data-ar="Optisec أداة دفاعية سلبية — تراقب وتُنبّه، لا تهاجم. مناسبة لتدقيق أمان الشبكات المصرح به، ومراقبة المختبرات المنزلية، والدفاع عن WiFi المؤسسي. تأكد دائماً من الحصول على إذن لمراقبة أي شبكة.">
+          Optisec is a passive defense tool — it monitors and alerts, it does not attack. It is suitable for authorized network security audits, home lab monitoring, and corporate WiFi defense. Always ensure you have authorization to monitor any network.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span data-en="What is the license bound to?" data-ar="بماذا يرتبط الترخيص؟">What is the license bound to?</span>
+          <span class="faq-arrow">▶</span>
+        </div>
+        <div class="faq-a" data-en="The license key is generated from your machine ID and your name on first run — it is stored in ~/.optisec/license.key. One license = one machine. Contact support to transfer to a new device." data-ar="يُولَّد مفتاح الترخيص من معرّف جهازك واسمك عند أول تشغيل — يُخزَّن في ~/.optisec/license.key. ترخيص واحد = جهاز واحد. تواصل مع الدعم للنقل إلى جهاز جديد.">
+          The license key is generated from your machine ID and your name on first run — it is stored in ~/.optisec/license.key. One license = one machine. Contact support to transfer to a new device.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">
+          <span data-en="Do I get future updates?" data-ar="هل سأحصل على التحديثات المستقبلية؟">Do I get future updates?</span>
+          <span class="faq-arrow">▶</span>
+        </div>
+        <div class="faq-a" data-en="Yes. One-time payment includes all future v1.x updates. Major version upgrades (v2.0+) may be offered at a discounted upgrade price for existing customers." data-ar="نعم. الدفعة الواحدة تشمل جميع تحديثات v1.x المستقبلية. الترقيات إلى إصدارات رئيسية (v2.0+) قد تُقدَّم بسعر مخفض للعملاء الحاليين.">
+          Yes. One-time payment includes all future v1.x updates. Major version upgrades (v2.0+) may be offered at a discounted upgrade price for existing customers.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">OPTISEC://WIFI</div>
+  <div class="footer-tagline"
+       data-en="Professional Network Defense — Authorized Use Only"
+       data-ar="دفاع شبكي احترافي — للاستخدام المرخّص فقط">
+    Professional Network Defense — Authorized Use Only
+  </div>
+  <div class="footer-links">
+    <a href="#features"    data-en="Features"    data-ar="المزايا">Features</a>
+    <a href="#screenshots" data-en="Screenshots" data-ar="لقطات الشاشة">Screenshots</a>
+    <a href="#pricing"     data-en="Pricing"     data-ar="الأسعار">Pricing</a>
+    <a href="mailto:ahssanali84.syber@gmail.com" data-en="Support" data-ar="الدعم">Support</a>
+  </div>
+  <div class="footer-copy"
+       data-en="© 2026 Optisec WiFi Monitor. For authorized defense use only. Unauthorized network monitoring may violate local laws."
+       data-ar="© 2026 Optisec WiFi Monitor. للاستخدام الدفاعي المرخص فقط. مراقبة الشبكات غير المصرح بها قد تنتهك القوانين المحلية.">
+    © 2026 Optisec WiFi Monitor. For authorized defense use only. Unauthorized network monitoring may violate local laws.
+  </div>
+</footer>
+
+<!-- ── JS ────────────────────────────────────────────────────── -->
+<script>
+  // ── Language toggle ────────────────────────────────────────
+  function setLang(lang) {
+    const isAr = lang === 'ar';
+    document.documentElement.lang = lang;
+    document.documentElement.dir  = isAr ? 'rtl' : 'ltr';
+    document.body.classList.toggle('ar', isAr);
+
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.toLowerCase() === lang);
+    });
+
+    document.querySelectorAll('[data-en]').forEach(el => {
+      const text = el.getAttribute(isAr ? 'data-ar' : 'data-en');
+      if (text) el.innerHTML = text;
+    });
+  }
+
+  // ── FAQ accordion ──────────────────────────────────────────
+  function toggleFaq(el) {
+    const wasOpen = el.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) el.classList.add('open');
+  }
+
+  // ── Smooth nav shadow on scroll ────────────────────────────
+  window.addEventListener('scroll', () => {
+    document.querySelector('nav').style.boxShadow =
+      window.scrollY > 10 ? '0 4px 30px rgba(0,0,0,0.5)' : 'none';
+  });
+</script>
+</body>
+</html>
