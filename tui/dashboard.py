@@ -82,6 +82,7 @@ class TUIDashboard:
         self._selected_net_idx = 0
         self._status_msg       = ""
         self._ai_lock          = threading.Lock()
+        self._license_mgr      = components.get('license_mgr')
 
         self.alert_mgr.register_callback(self._on_alert)
 
@@ -160,6 +161,8 @@ class TUIDashboard:
         t.append(f"  {now}  ",               style="dim")
         t.append(f"  Mon:{monitor_iface}  ", style="green")
         t.append(f"  Net:{internet_iface}  ",style="blue")
+        if self._license_mgr and self._license_mgr.is_valid:
+            t.append(f"  LICENSED TO: {self._license_mgr.name}  ", style="bold yellow")
         return Panel(Align.center(t), style="bold blue", height=3)
 
     def _make_stats_panel(self) -> Panel:

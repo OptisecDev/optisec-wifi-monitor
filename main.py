@@ -19,6 +19,7 @@ from core.database import Database
 from core.config_manager import ConfigManager
 from core.interface_manager import InterfaceManager
 from core.alert_manager import AlertManager
+from core.license_manager import LicenseManager
 from modules.device_monitor import DeviceMonitor
 from modules.attack_detector import AttackDetector
 from modules.encryption_auditor import EncryptionAuditor
@@ -64,7 +65,20 @@ def require_authorization() -> bool:
     return answer in ('yes', 'y')
 
 
-def init_components(monitor_iface: str, internet_iface: str, lang: str) -> dict:
+def init_license() -> LicenseManager:
+    lic = LicenseManager()
+    lic.load_or_create(
+        name_prompt_fn=lambda: console.input(
+            "\n[bold cyan]First run — enter your name for license: [/bold cyan]"
+        ).strip() or "User"
+    )
+    if lic.is_valid:
+        console.print(f"[green]✓  {lic.display}[/green]")
+    return lic
+
+
+def init_components(monitor_iface: str, internet_iface: str, lang: str,
+                    license_mgr: LicenseManager = None) -> dict:
     db = Database()
     config = ConfigManager()
     config.config["monitor_interface"] = monitor_iface
@@ -113,6 +127,7 @@ def init_components(monitor_iface: str, internet_iface: str, lang: str) -> dict:
         'ai_engine':       ai_engine,
         'pdf_reporter':    pdf_reporter,
         'telegram':        telegram,
+        'license_mgr':     license_mgr,
     }
 
 
@@ -153,11 +168,12 @@ def cli(ctx):
 def tui(monitor_iface, internet_iface, lang):
     """Launch the Rich TUI dashboard."""
     print_banner()
+    lic = init_license()
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
 
-    components = init_components(monitor_iface, internet_iface, lang)
+    components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
 
     from tui.dashboard import TUIDashboard
@@ -175,11 +191,12 @@ def tui(monitor_iface, internet_iface, lang):
 def web(monitor_iface, internet_iface, port, lang):
     """Launch the Flask web dashboard."""
     print_banner()
+    lic = init_license()
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
 
-    components = init_components(monitor_iface, internet_iface, lang)
+    components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
 
     from web.app import create_app
@@ -197,11 +214,12 @@ def web(monitor_iface, internet_iface, port, lang):
 def both(monitor_iface, internet_iface, port, lang):
     """Launch TUI + web dashboard simultaneously."""
     print_banner()
+    lic = init_license()
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
 
-    components = init_components(monitor_iface, internet_iface, lang)
+    components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
 
     # Start web in background thread
