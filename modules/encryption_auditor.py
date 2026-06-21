@@ -5,6 +5,20 @@ import time
 import subprocess
 import re
 
+_BINARY_PAT = re.compile(r'\\x[0-9a-fA-F]{2}')
+
+
+def _sanitize_ssid(raw) -> str:
+    """Return printable SSID or '(hidden)' for empty/binary/escaped-byte SSIDs."""
+    if not raw:
+        return ''
+    s = raw if isinstance(raw, str) else raw.decode('utf-8', errors='replace')
+    if any(ord(c) < 32 or ord(c) > 126 for c in s):
+        return '(hidden)'
+    if _BINARY_PAT.search(s):
+        return '(hidden)'
+    return s
+
 try:
     from scapy.all import (
         sniff, Dot11, Dot11Beacon, Dot11Elt, RadioTap, conf
@@ -96,10 +110,9 @@ class EncryptionAuditor:
 
             if eid == 0:  # SSID
                 try:
-                    decoded = info.decode('utf-8', errors='replace')
-                    ssid = "(binary)" if any(ord(c) < 32 or ord(c) > 126 for c in decoded) else decoded
+                    ssid = _sanitize_ssid(info)
                 except Exception:
-                    ssid = "(binary)"
+                    ssid = "(hidden)"
 
             elif eid == 3:  # DS Parameter (channel)
                 try:
@@ -310,8 +323,7 @@ class EncryptionAuditor:
         else:
             enc = 'OPEN'
 
-        raw_ssid = entry.get('ssid', '')
-        ssid = "(binary)" if any(ord(c) < 32 or ord(c) > 126 for c in raw_ssid) else raw_ssid
+        ssid = _sanitize_ssid(entry.get('ssid', ''))
         info = {
             'bssid': bssid,
             'ssid': ssid,

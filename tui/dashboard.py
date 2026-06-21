@@ -42,7 +42,20 @@ SCORE_RANGES = [
     (range(80, 101),"bold green"),
 ]
 
-_MAC_RE = re.compile(r'([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})')
+_MAC_RE    = re.compile(r'([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})')
+_BINARY_PAT = re.compile(r'\\x[0-9a-fA-F]{2}')
+
+
+def _sanitize_ssid(raw, max_len: int = 16) -> str:
+    """Return printable SSID or '(hidden)' for empty/binary/iwlist-escaped SSIDs."""
+    s = str(raw or '')
+    if not s:
+        return '(hidden)'
+    if any(ord(c) < 32 or ord(c) > 126 for c in s):
+        return '(hidden)'
+    if _BINARY_PAT.search(s):
+        return '(hidden)'
+    return s[:max_len] or '(hidden)'
 
 
 def score_color(score: int) -> str:
@@ -266,9 +279,7 @@ class TUIDashboard:
         table.add_column("WPS",  min_width=4)
 
         for i, a in enumerate(audits[:max_rows]):
-            raw  = str(a.get('ssid', '') or '')
-            ssid = ('(binary)' if any(ord(c) < 32 or ord(c) > 126 for c in raw)
-                    else raw[:14]) or '(hidden)'
+            ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
             enc   = str(a.get('encryption_type', 'UNKNOWN'))
             score = int(a.get('security_score', 0))
             wps   = "[red]Y[/red]" if a.get('wps_enabled') else "[green]N[/green]"
@@ -294,11 +305,8 @@ class TUIDashboard:
         # Show selected network details in title
         title = "[bold blue]Networks[/bold blue]"
         if audits:
-            sel  = audits[sel_idx]
-            raw  = str(sel.get('ssid', '') or '')
-            ssid = ('(binary)' if any(ord(c) < 32 or ord(c) > 126 for c in raw)
-                    else raw[:12]) or '(hidden)'
-            title = f"[bold blue]Networks[/bold blue] [dim]▶ {ssid}[/dim]  [dim]n/p=select[/dim]"
+            ssid_sel = _sanitize_ssid(audits[sel_idx].get('ssid', ''), max_len=12)
+            title = f"[bold blue]Networks[/bold blue] [dim]▶ {ssid_sel}[/dim]  [dim]n/p=select[/dim]"
 
         return Panel(table, title=title, border_style="blue")
 
@@ -313,9 +321,7 @@ class TUIDashboard:
         table.add_column("Score",      min_width=6)
 
         for a in audits:
-            raw  = str(a.get('ssid', '') or '')
-            ssid = ('(binary)' if any(ord(c) < 32 or ord(c) > 126 for c in raw)
-                    else raw[:14]) or '(hidden)'
+            ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
             enc   = str(a.get('encryption_type', 'UNKNOWN'))
             wps   = "[red]YES[/red]" if a.get('wps_enabled') else "[green]No[/green]"
             score = int(a.get('security_score', 0))

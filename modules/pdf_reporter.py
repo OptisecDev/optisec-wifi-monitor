@@ -1,7 +1,21 @@
 """PDF session report generator using reportlab."""
 
 import os
+import re
 from datetime import datetime
+
+_BINARY_PAT = re.compile(r'\\x[0-9a-fA-F]{2}')
+
+
+def _sanitize_ssid(raw, max_len: int = 18) -> str:
+    s = str(raw or '')
+    if not s:
+        return '(hidden)'
+    if any(ord(c) < 32 or ord(c) > 126 for c in s):
+        return '(hidden)'
+    if _BINARY_PAT.search(s):
+        return '(hidden)'
+    return s[:max_len] or '(hidden)'
 
 REPORTS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports'
@@ -181,9 +195,7 @@ class PDFReporter:
             enc_data = [["SSID", "BSSID", "Encryption", "WPS", "Score"]]
             enc_styles = []
             for i, a in enumerate(audits, 1):
-                raw = str(a.get('ssid', '') or '')
-                ssid = ('(binary)' if any(ord(c) < 32 or ord(c) > 126 for c in raw)
-                        else raw[:18]) or '(hidden)'
+                ssid = _sanitize_ssid(a.get('ssid', ''))
                 score = int(a.get('security_score', 0))
                 wps = 'YES' if a.get('wps_enabled') else 'No'
                 enc_data.append([ssid, str(a.get('bssid', '')),
