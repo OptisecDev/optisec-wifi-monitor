@@ -679,7 +679,6 @@
     .hero-stats { gap: 2rem; }
   }
 </style>
-<script async src="https://js.stripe.com/v3/buy-button.js"></script>
 </head>
 <body>
 
@@ -1000,20 +999,11 @@
           <li><span class="check">✓</span> <span data-en="Email support" data-ar="دعم عبر البريد الإلكتروني">Email support</span></li>
         </ul>
 
-        <!-- Stripe Buy Button -->
-        <div style="margin-bottom:1rem;">
-          <stripe-buy-button
-            buy-button-id="buy_btn_PLACEHOLDER"
-            publishable-key="pk_live_PLACEHOLDER"
-            style="width:100%;">
-          </stripe-buy-button>
-        </div>
-
-        <a href="mailto:ahssanali84.syber@gmail.com?subject=Optisec WiFi Monitor — Purchase Request&body=I'd like to purchase Optisec WiFi Monitor for $199."
+        <a href="https://buy.stripe.com/test_4gMcN72YtcRdfPY4ld3cc00"
            class="btn-buy"
-           style="font-size:0.9rem; padding:0.8rem; opacity:0.7;"
-           data-en="✉ Pay via Email Invoice — $199" data-ar="✉ الدفع عبر فاتورة بريد إلكتروني — 199$">
-          ✉ Pay via Email Invoice — $199
+           target="_blank" rel="noopener"
+           data-en="🛒 Buy Now — $199" data-ar="🛒 اشتر الآن — 199$">
+          🛒 Buy Now — $199
         </a>
 
         <div class="price-note"
