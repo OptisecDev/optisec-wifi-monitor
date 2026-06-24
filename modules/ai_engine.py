@@ -8,6 +8,22 @@ import requests
 from collections import defaultdict
 from datetime import datetime
 
+# Vendors commonly associated with monitoring/attack tools — elevated local risk
+_HIGH_RISK_VENDORS = frozenset({'Alfa Networks', 'Unknown'})
+_MEDIUM_RISK_VENDORS = frozenset({'Ralink Technology', 'MediaTek', 'Realtek'})
+
+
+def _oui_risk_score(vendor: str) -> int:
+    """Local OUI risk score 0-100 (higher = riskier). No external calls."""
+    v = (vendor or '').strip()
+    if not v or v == 'Unknown':
+        return 75
+    if v in _HIGH_RISK_VENDORS:
+        return 80
+    if v in _MEDIUM_RISK_VENDORS:
+        return 45
+    return 10
+
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
@@ -104,19 +120,126 @@ class AIEngine:
         return ""
 
     def _offline_analysis(self, messages: list) -> str:
-        context = messages[-1]['content'] if messages else ""
-        if self.language == 'ar':
-            return (
-                "⚠ تحليل غير متصل بالإنترنت\n\n"
-                "لا يمكن الاتصال بـ Groq API أو OpenRouter.\n"
-                "يرجى التحقق من مفتاح API والاتصال بالإنترنت.\n\n"
-                "البيانات المجمعة:\n" + context[:500]
-            )
-        return (
-            "⚠ Offline Analysis\n\n"
-            "Could not reach Groq or OpenRouter API. Check API key and connection.\n\n"
-            "Collected data summary:\n" + context[:500]
-        )
+        """Real local analysis: Evil Twin / BSSID conflict + OUI risk scoring.
+        All processing stays on-device — no MAC or SSID data leaves the machine."""
+        ar = (self.language == 'ar')
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        try:
+            audits  = self.db.get_audits(limit=500)
+            devices = self.db.get_all_devices()
+        except Exception:
+            audits, devices = [], []
+
+        # ── Evil Twin / BSSID Conflict ────────────────────────────────────
+        ssid_bssids: dict = defaultdict(set)
+        for a in audits:
+            ssid  = (a.get('ssid') or '').strip()
+            bssid = (a.get('bssid') or '').strip().upper()
+            if ssid and bssid and ssid not in ('(hidden)', ''):
+                ssid_bssids[ssid].add(bssid)
+        evil_twins = {s: sorted(b) for s, b in ssid_bssids.items() if len(b) > 1}
+
+        # ── OUI Risk Scoring (local, no external call) ────────────────────
+        device_risks = []
+        for d in devices:
+            mac    = (d.get('mac') or '').upper()
+            vendor = (d.get('vendor') or 'Unknown').strip()
+            score  = _oui_risk_score(vendor)
+            if score >= 40:
+                device_risks.append((mac, vendor, score))
+        device_risks.sort(key=lambda x: -x[2])
+
+        # ── Encryption Summary ────────────────────────────────────────────
+        enc_counts: dict = defaultdict(int)
+        open_nets, wep_nets = [], []
+        for a in audits:
+            enc = a.get('encryption_type', 'UNKNOWN')
+            enc_counts[enc] += 1
+            if enc == 'OPEN':
+                open_nets.append(a.get('ssid', ''))
+            elif enc == 'WEP':
+                wep_nets.append(a.get('ssid', ''))
+
+        total_audits  = len(audits)
+        total_devices = len(devices)
+
+        # ── Build bilingual report ────────────────────────────────────────
+        if ar:
+            lines = [
+                "═══════════════════════════════════════════",
+                "  تقرير الأمان المحلي — Optisec WiFi Monitor",
+                f"  {now}",
+                "═══════════════════════════════════════════", "",
+                "📊 إجماليات",
+                f"  الأجهزة المرصودة : {total_devices}",
+                f"  الشبكات المدققة  : {total_audits}", "",
+            ]
+            if evil_twins:
+                lines.append(f"🚨 Evil Twin / تعارض BSSID ({len(evil_twins)} حالة مكتشفة)")
+                for ssid, bssids in list(evil_twins.items())[:5]:
+                    lines.append(f"  SSID «{ssid}» ← {len(bssids)} BSSIDs مختلفة")
+                    for b in bssids:
+                        lines.append(f"    • {b}")
+            else:
+                lines.append("✅ لم يُكتشف Evil Twin أو تعارض BSSID")
+            lines.append("")
+            if device_risks:
+                lines.append(f"⚠️  أجهزة مجهولة / عالية الخطورة ({len(device_risks)})")
+                for mac, vendor, score in device_risks[:8]:
+                    lines.append(f"  {mac}  [{vendor}]  درجة الخطر: {score}/100")
+            lines.append("")
+            lines.append("🔐 توزيع التشفير")
+            for enc, cnt in sorted(enc_counts.items(), key=lambda x: -x[1]):
+                lines.append(f"  {enc:<14}: {cnt} شبكة")
+            if open_nets:
+                lines += ["", f"⛔ شبكات مفتوحة ({len(open_nets)}) — بلا تشفير، خطر مرتفع"]
+                for s in open_nets[:5]:
+                    lines.append(f"  • {s}")
+            if wep_nets:
+                lines += ["", f"⛔ شبكات WEP ({len(wep_nets)}) — تشفير مكسور، عالي الخطورة"]
+            lines += [
+                "", "═══════════════════════════════════════════",
+                "  ✔ التحليل محلي بالكامل — لم يُرسل أي MAC خارج الجهاز",
+            ]
+        else:
+            lines = [
+                "═══════════════════════════════════════════",
+                "  Offline Security Report — Optisec WiFi Monitor",
+                f"  {now}",
+                "═══════════════════════════════════════════", "",
+                "📊 Overview",
+                f"  Monitored devices  : {total_devices}",
+                f"  Audited networks   : {total_audits}", "",
+            ]
+            if evil_twins:
+                lines.append(f"🚨 Evil Twin / BSSID Conflict ({len(evil_twins)} detected)")
+                for ssid, bssids in list(evil_twins.items())[:5]:
+                    lines.append(f"  SSID '{ssid}' ← {len(bssids)} distinct BSSIDs")
+                    for b in bssids:
+                        lines.append(f"    • {b}")
+            else:
+                lines.append("✅ No Evil Twin or BSSID conflict detected")
+            lines.append("")
+            if device_risks:
+                lines.append(f"⚠️  High-risk / unknown-vendor devices ({len(device_risks)})")
+                for mac, vendor, score in device_risks[:8]:
+                    lines.append(f"  {mac}  [{vendor}]  Risk: {score}/100")
+            lines.append("")
+            lines.append("🔐 Encryption breakdown")
+            for enc, cnt in sorted(enc_counts.items(), key=lambda x: -x[1]):
+                lines.append(f"  {enc:<14}: {cnt} network(s)")
+            if open_nets:
+                lines += ["", f"⛔ Open networks ({len(open_nets)}) — no encryption, high risk"]
+                for s in open_nets[:5]:
+                    lines.append(f"  • {s}")
+            if wep_nets:
+                lines += ["", f"⛔ WEP networks ({len(wep_nets)}) — broken encryption, high risk"]
+            lines += [
+                "", "═══════════════════════════════════════════",
+                "  ✔ Analysis is fully local — no MAC sent outside this device",
+            ]
+        return "\n".join(lines)
 
     # ── Risk Scoring (rule-based, no API call) ───────────────────────────
 

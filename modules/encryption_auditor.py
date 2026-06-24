@@ -5,6 +5,58 @@ import time
 import subprocess
 import re
 
+# Bilingual security recommendations per encryption type
+_ENC_RECOMMENDATIONS = {
+    'OPEN': {
+        'en': "CRITICAL: No encryption. All traffic is visible to nearby attackers. "
+              "Upgrade to WPA3-Personal or at minimum WPA2-PSK immediately.",
+        'ar': "خطر حرج: لا يوجد تشفير. جميع البيانات مكشوفة لأي مهاجم قريب. "
+              "قم بالترقية فوراً إلى WPA3 أو WPA2-PSK على الأقل.",
+    },
+    'WEP': {
+        'en': "CRITICAL: WEP is completely broken (cracked in under 2 minutes). "
+              "Replace immediately with WPA3-Personal or WPA2-PSK+AES.",
+        'ar': "خطر حرج: تشفير WEP مكسور بالكامل (يُكسر في أقل من دقيقتين). "
+              "استبدله فوراً بـ WPA3 أو WPA2-PSK+AES.",
+    },
+    'WPA': {
+        'en': "HIGH: WPA (TKIP) is deprecated and vulnerable to key-recovery attacks. "
+              "Upgrade to WPA3-Personal or WPA2-PSK+AES (CCMP).",
+        'ar': "خطر مرتفع: WPA-TKIP قديم وعرضة لهجمات استعادة المفتاح. "
+              "قم بالترقية إلى WPA3 أو WPA2-PSK+AES.",
+    },
+    'WPA2': {
+        'en': "MEDIUM: WPA2 is acceptable with AES/CCMP. Enable PMF (802.11w) "
+              "and disable WPS for better protection.",
+        'ar': "خطر متوسط: WPA2 مقبول مع AES. فعّل PMF (802.11w) وعطّل WPS لحماية أفضل.",
+    },
+    'WPA2-PSK': {
+        'en': "MEDIUM: WPA2-PSK with AES is acceptable. Enable PMF, disable WPS, "
+              "and use a strong passphrase (20+ characters).",
+        'ar': "خطر متوسط: WPA2-PSK مقبول مع AES. فعّل PMF، عطّل WPS، "
+              "واستخدم كلمة مرور قوية (+20 حرف).",
+    },
+    'WPA2-EAP': {
+        'en': "LOW: WPA2-Enterprise (EAP) is strong. Enable PMF and enforce "
+              "certificate validation on clients.",
+        'ar': "خطر منخفض: WPA2-Enterprise قوي للاستخدام المؤسسي. "
+              "فعّل PMF وتحقق من صحة الشهادات على العملاء.",
+    },
+    'WPA3': {
+        'en': "LOW: WPA3 provides strong protection with SAE and mandatory PMF. "
+              "Keep router firmware up to date.",
+        'ar': "خطر منخفض: WPA3 يوفر حماية قوية مع SAE و PMF الإلزامي. "
+              "حافظ على تحديث البرنامج الثابت للراوتر.",
+    },
+}
+
+_WPS_RECOMMENDATION = {
+    'en': "WARNING: WPS is enabled — vulnerable to Pixie-Dust and PIN brute-force attacks. "
+          "Disable WPS in router settings immediately.",
+    'ar': "تحذير: WPS مفعّل — عرضة لهجمات Pixie-Dust وتخمين PIN. "
+          "عطّل WPS في إعدادات الراوتر فوراً.",
+}
+
 _BINARY_PAT = re.compile(r'\\x[0-9a-fA-F]{2}')
 
 
@@ -234,6 +286,12 @@ class EncryptionAuditor:
                 f"Open network detected: '{ssid}' ({bssid})",
                 f"Encryption: OPEN | Score: {score}/100"
             )
+        elif enc == 'WEP':
+            self.alert_mgr.high(
+                "WEAK_ENCRYPTION",
+                f"WEP network detected: '{ssid}' ({bssid}) — encryption is broken",
+                f"Encryption: WEP (cracked in <2 min) | Score: {score}/100"
+            )
         elif enc == 'WPA':
             self.alert_mgr.medium(
                 "WEAK_ENCRYPTION",
@@ -335,20 +393,39 @@ class EncryptionAuditor:
         }
         self._evaluate_and_store(info)
 
-    def get_audit_summary(self) -> dict:
+    def get_audit_summary(self, language: str = 'en') -> dict:
         audits = self.db.get_audits(limit=1000)
         total = len(audits)
         if not total:
             return {'total': 0}
 
         scores = [a['security_score'] for a in audits]
-        enc_types = {}
-        wps_count = 0
+        enc_types: dict = {}
+        wps_count = open_count = wep_count = 0
         for a in audits:
             et = a.get('encryption_type', 'UNKNOWN')
             enc_types[et] = enc_types.get(et, 0) + 1
             if a.get('wps_enabled'):
                 wps_count += 1
+            if et == 'OPEN':
+                open_count += 1
+            elif et == 'WEP':
+                wep_count += 1
+
+        critical = open_count + wep_count
+        lang = 'ar' if language == 'ar' else 'en'
+        if critical > 0:
+            overall_rec = (
+                "عدد كبير من الشبكات غير الآمنة. يُنصح بتحسين التشفير فوراً."
+                if lang == 'ar'
+                else "Several critically insecure networks detected. Immediate encryption upgrades required."
+            )
+        else:
+            overall_rec = (
+                "البيئة الشبكية آمنة نسبياً. راقب WPS والشبكات بدون PMF."
+                if lang == 'ar'
+                else "Network environment appears reasonably secure. Monitor WPS and non-PMF networks."
+            )
 
         return {
             'total': total,
@@ -357,4 +434,30 @@ class EncryptionAuditor:
             'max_score': max(scores),
             'encryption_breakdown': enc_types,
             'wps_enabled_count': wps_count,
+            'open_networks': open_count,
+            'wep_networks': wep_count,
+            'critical_networks': critical,
+            'overall_recommendation': overall_rec,
         }
+
+    def get_recommendations(self, language: str = 'en') -> list:
+        """Return per-network security recommendations in English or Arabic."""
+        lang = 'ar' if language == 'ar' else 'en'
+        audits = self.db.get_audits(limit=500)
+        results = []
+        for a in audits:
+            enc  = a.get('encryption_type', 'OPEN')
+            rec_map = _ENC_RECOMMENDATIONS.get(enc, _ENC_RECOMMENDATIONS['WPA2'])
+            entry = {
+                'ssid':           a.get('ssid', ''),
+                'bssid':          a.get('bssid', ''),
+                'encryption':     enc,
+                'wps_enabled':    bool(a.get('wps_enabled')),
+                'pmf_enabled':    bool(a.get('pmf_enabled')),
+                'security_score': a.get('security_score', 0),
+                'recommendation': rec_map[lang],
+            }
+            if a.get('wps_enabled'):
+                entry['wps_warning'] = _WPS_RECOMMENDATION[lang]
+            results.append(entry)
+        return results

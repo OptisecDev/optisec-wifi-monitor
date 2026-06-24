@@ -10,7 +10,7 @@ from collections import defaultdict
 try:
     from scapy.all import (
         sniff, ARP, Ether, IP, Dot11, Dot11Beacon, Dot11ProbeResp,
-        get_if_hwaddr, conf
+        Dot11Elt, RadioTap, get_if_hwaddr, conf
     )
     SCAPY_AVAILABLE = True
 except ImportError:
@@ -197,3 +197,171 @@ class DeviceMonitor:
         for d in devices:
             d['whitelisted'] = d['mac'].upper() in whitelist
         return devices
+
+
+class PassiveMonitor:
+    """Fingerprint every seen device passively, detect BSSID conflicts (Evil Twin),
+    and fire immediate alerts — no packets are transmitted."""
+
+    def __init__(self, db, alert_mgr, iface: str):
+        self.db        = db
+        self.alert_mgr = alert_mgr
+        self.iface     = iface
+        self._running  = False
+        self._lock     = threading.Lock()
+        # mac -> fingerprint dict
+        self._fingerprints: dict = {}
+        # ssid -> set of bssids (for conflict detection)
+        self._ssid_bssids: dict = defaultdict(set)
+
+    # ── Lifecycle ─────────────────────────────────────────────────────────
+
+    def start(self):
+        self._running = True
+        if SCAPY_AVAILABLE:
+            t = threading.Thread(target=self._sniff, daemon=True)
+            t.start()
+
+    def stop(self):
+        self._running = False
+
+    # ── Sniffing ──────────────────────────────────────────────────────────
+
+    def _sniff(self):
+        try:
+            sniff(
+                iface=self.iface,
+                prn=self._handle_packet,
+                store=False,
+                stop_filter=lambda _: not self._running,
+            )
+        except Exception as e:
+            self.alert_mgr.low("SYSTEM", f"PassiveMonitor sniff error: {e}")
+
+    def _handle_packet(self, pkt):
+        try:
+            if pkt.haslayer(Dot11Beacon):
+                self._handle_beacon(pkt)
+            elif pkt.haslayer(Dot11) and pkt[Dot11].type == 2:
+                self._handle_data_frame(pkt)
+        except Exception:
+            pass
+
+    def _handle_beacon(self, pkt):
+        bssid = (pkt[Dot11].addr3 or '').upper()
+        if not bssid or bssid == 'FF:FF:FF:FF:FF:FF':
+            return
+
+        # Extract SSID and channel
+        ssid    = ''
+        channel = 0
+        elt = pkt.getlayer(Dot11Elt)
+        while elt and isinstance(elt, Dot11Elt):
+            if elt.ID == 0:
+                try:
+                    ssid = elt.info.decode('utf-8', errors='replace').strip('\x00')
+                except Exception:
+                    ssid = '(hidden)'
+            elif elt.ID == 3 and elt.info:
+                try:
+                    channel = elt.info[0]
+                except Exception:
+                    pass
+            elt = elt.payload if isinstance(getattr(elt, 'payload', None), Dot11Elt) else None
+
+        signal = self._extract_signal(pkt)
+        now    = datetime.now().isoformat()
+
+        with self._lock:
+            if bssid in self._fingerprints:
+                fp = self._fingerprints[bssid]
+                fp['last_seen']   = now
+                fp['frame_count'] = fp.get('frame_count', 0) + 1
+                if signal is not None:
+                    fp['signal'] = signal
+            else:
+                self._fingerprints[bssid] = {
+                    'mac':         bssid,
+                    'type':        'AP',
+                    'ssid':        ssid,
+                    'channel':     channel,
+                    'signal':      signal,
+                    'first_seen':  now,
+                    'last_seen':   now,
+                    'frame_count': 1,
+                }
+
+            # ── BSSID conflict / Evil Twin detection ──────────────────────
+            if ssid and ssid not in ('', '(hidden)'):
+                existing_bssids = self._ssid_bssids[ssid].copy()
+                if bssid not in existing_bssids:
+                    self._ssid_bssids[ssid].add(bssid)
+                    if existing_bssids:
+                        others = ', '.join(sorted(existing_bssids))
+                        self.alert_mgr.high(
+                            "EVIL_TWIN",
+                            f"Evil Twin detected! SSID '{ssid}' seen with multiple BSSIDs",
+                            f"Known BSSID(s): {others} | New BSSID: {bssid}",
+                        )
+
+    def _handle_data_frame(self, pkt):
+        src = (pkt[Dot11].addr2 or '').upper()
+        if not src or src == 'FF:FF:FF:FF:FF:FF':
+            return
+
+        signal = self._extract_signal(pkt)
+        now    = datetime.now().isoformat()
+
+        with self._lock:
+            if src in self._fingerprints:
+                fp = self._fingerprints[src]
+                fp['last_seen']   = now
+                fp['frame_count'] = fp.get('frame_count', 0) + 1
+                if signal is not None:
+                    fp['signal'] = signal
+            else:
+                self._fingerprints[src] = {
+                    'mac':         src,
+                    'type':        'CLIENT',
+                    'signal':      signal,
+                    'first_seen':  now,
+                    'last_seen':   now,
+                    'frame_count': 1,
+                }
+
+    @staticmethod
+    def _extract_signal(pkt) -> int | None:
+        if SCAPY_AVAILABLE and pkt.haslayer(RadioTap):
+            try:
+                return int(pkt[RadioTap].dBm_AntSignal)
+            except Exception:
+                pass
+        return None
+
+    # ── Public API ────────────────────────────────────────────────────────
+
+    def get_fingerprints(self) -> dict:
+        with self._lock:
+            return dict(self._fingerprints)
+
+    def get_bssid_conflicts(self) -> dict:
+        """Return {ssid: [bssid, ...]} for all SSIDs seen with more than one BSSID."""
+        with self._lock:
+            return {
+                ssid: sorted(bssids)
+                for ssid, bssids in self._ssid_bssids.items()
+                if len(bssids) > 1
+            }
+
+    def get_stats(self) -> dict:
+        with self._lock:
+            aps     = sum(1 for f in self._fingerprints.values() if f.get('type') == 'AP')
+            clients = sum(1 for f in self._fingerprints.values() if f.get('type') == 'CLIENT')
+            return {
+                'total_seen': len(self._fingerprints),
+                'access_points': aps,
+                'clients': clients,
+                'bssid_conflicts': len([
+                    s for s, b in self._ssid_bssids.items() if len(b) > 1
+                ]),
+            }
