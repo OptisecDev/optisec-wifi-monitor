@@ -1,1142 +1,1628 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Optisec WiFi Monitor — Professional Network Defense</title>
-<style>
-  :root {
-    --green:   #00ff88;
-    --cyan:    #00d4ff;
-    --red:     #ff3b5c;
-    --bg:      #04090f;
-    --bg2:     #080f1a;
-    --card:    #0a1628;
-    --border:  #132240;
-    --text:    #d0dce8;
-    --muted:   #4a6080;
-    --yellow:  #ffb800;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  body.ar { font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif; }
-
-  /* ── Scanlines overlay ───────────────────────────────────── */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,255,136,0.015) 2px,
-      rgba(0,255,136,0.015) 4px
-    );
-    pointer-events: none;
-    z-index: 999;
-  }
-
-  /* ── Nav ─────────────────────────────────────────────────── */
-  nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    background: rgba(4,9,15,0.92);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    padding: 1rem 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .nav-logo {
-    font-size: 1.1rem;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
-    color: var(--green);
-    letter-spacing: 2px;
-    text-shadow: 0 0 16px rgba(0,255,136,0.5);
-  }
-
-  .nav-logo span { color: var(--cyan); }
-
-  .nav-right { display: flex; align-items: center; gap: 1.5rem; }
-
-  .lang-toggle {
-    display: flex;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .lang-btn {
-    padding: 0.35rem 0.85rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    transition: all 0.2s;
-  }
-
-  .lang-btn.active {
-    background: var(--green);
-    color: #04090f;
-  }
-
-  .nav-cta {
-    padding: 0.45rem 1.2rem;
-    background: transparent;
-    border: 1px solid var(--green);
-    color: var(--green);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
-  }
-
-  .nav-cta:hover {
-    background: var(--green);
-    color: #04090f;
-    box-shadow: 0 0 20px rgba(0,255,136,0.4);
-  }
-
-  /* ── Hero ────────────────────────────────────────────────── */
-  .hero {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 7rem 2rem 4rem;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .hero-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
-    background-size: 50px 50px;
-    animation: gridPan 20s linear infinite;
-  }
-
-  @keyframes gridPan {
-    0%   { background-position: 0 0; }
-    100% { background-position: 50px 50px; }
-  }
-
-  .hero-glow {
-    position: absolute;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .hero-content { position: relative; z-index: 1; max-width: 820px; }
-
-  .hero-badge {
-    display: inline-block;
-    padding: 0.35rem 1rem;
-    border: 1px solid var(--green);
-    border-radius: 50px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--green);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-bottom: 1.5rem;
-    background: rgba(0,255,136,0.06);
-  }
-
-  .hero h1 {
-    font-size: clamp(2.4rem, 6vw, 4.2rem);
-    font-weight: 800;
-    line-height: 1.1;
-    margin-bottom: 1.5rem;
-    letter-spacing: -1px;
-  }
-
-  .hero h1 .accent { color: var(--green); }
-  .hero h1 .accent2 { color: var(--cyan); }
-
-  .hero-sub {
-    font-size: clamp(1rem, 2.5vw, 1.25rem);
-    color: var(--muted);
-    max-width: 600px;
-    margin: 0 auto 2.5rem;
-    line-height: 1.7;
-  }
-
-  .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 2.2rem;
-    background: var(--green);
-    color: #04090f;
-    font-weight: 800;
-    font-size: 1rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
-    box-shadow: 0 0 30px rgba(0,255,136,0.3);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 50px rgba(0,255,136,0.5);
-  }
-
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 2rem;
-    background: transparent;
-    color: var(--cyan);
-    font-weight: 600;
-    font-size: 1rem;
-    border: 1px solid var(--cyan);
-    border-radius: 8px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-
-  .btn-secondary:hover {
-    background: rgba(0,212,255,0.08);
-    box-shadow: 0 0 20px rgba(0,212,255,0.2);
-  }
-
-  .hero-stats {
-    display: flex;
-    gap: 3rem;
-    justify-content: center;
-    margin-top: 4rem;
-    flex-wrap: wrap;
-  }
-
-  .stat { text-align: center; }
-  .stat-num {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--green);
-    font-family: 'Courier New', monospace;
-  }
-  .stat-label { font-size: 0.8rem; color: var(--muted); letter-spacing: 1px; }
-
-  /* ── Terminal Demo ───────────────────────────────────────── */
-  .terminal-section {
-    padding: 5rem 2rem;
-    background: var(--bg2);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .terminal-wrap {
-    max-width: 900px;
-    margin: 0 auto;
-    background: #020810;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 0 60px rgba(0,255,136,0.1), 0 20px 60px rgba(0,0,0,0.5);
-  }
-
-  .terminal-bar {
-    background: var(--card);
-    padding: 0.75rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .dot { width: 12px; height: 12px; border-radius: 50%; }
-  .dot-r { background: #ff5f57; }
-  .dot-y { background: #ffbd2e; }
-  .dot-g { background: #28ca41; }
-
-  .terminal-title {
-    margin-left: auto; margin-right: auto;
-    font-size: 0.75rem;
-    color: var(--muted);
-    font-family: 'Courier New', monospace;
-  }
-
-  .terminal-body {
-    padding: 1.5rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.9;
-  }
-
-  .t-prompt { color: var(--green); }
-  .t-cmd    { color: var(--text); }
-  .t-ok     { color: var(--green); }
-  .t-warn   { color: var(--yellow); }
-  .t-err    { color: var(--red); }
-  .t-info   { color: var(--cyan); }
-  .t-dim    { color: var(--muted); }
-  .t-blink  { animation: blink 1s step-end infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-
-  /* ── Section ─────────────────────────────────────────────── */
-  section { padding: 6rem 2rem; }
-  .container { max-width: 1100px; margin: 0 auto; }
-
-  .section-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--green);
-    margin-bottom: 0.75rem;
-  }
-
-  .section-title {
-    font-size: clamp(1.8rem, 4vw, 2.6rem);
-    font-weight: 800;
-    margin-bottom: 1rem;
-    line-height: 1.2;
-  }
-
-  .section-sub {
-    font-size: 1.05rem;
-    color: var(--muted);
-    max-width: 560px;
-    margin-bottom: 3.5rem;
-  }
-
-  /* ── Features grid ───────────────────────────────────────── */
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .feature-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.75rem;
-    transition: all 0.25s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--green), transparent);
-    opacity: 0;
-    transition: opacity 0.25s;
-  }
-
-  .feature-card:hover {
-    border-color: rgba(0,255,136,0.3);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 20px rgba(0,255,136,0.05);
-  }
-
-  .feature-card:hover::before { opacity: 1; }
-
-  .feature-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    display: block;
-  }
-
-  .feature-card h3 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: #e8f0f8;
-  }
-
-  .feature-card p {
-    font-size: 0.9rem;
-    color: var(--muted);
-    line-height: 1.6;
-  }
-
-  .tag {
-    display: inline-block;
-    padding: 0.2rem 0.6rem;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    margin-top: 0.75rem;
-  }
-
-  .tag-green  { background: rgba(0,255,136,0.12); color: var(--green); }
-  .tag-cyan   { background: rgba(0,212,255,0.12); color: var(--cyan); }
-  .tag-yellow { background: rgba(255,184,0,0.12); color: var(--yellow); }
-  .tag-red    { background: rgba(255,59,92,0.12);  color: var(--red); }
-
-  /* ── Screenshots ─────────────────────────────────────────── */
-  .screenshots { background: var(--bg2); }
-
-  .screen-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1rem;
-  }
-
-  .screen-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .screen-preview {
-    background: #020810;
-    padding: 1.25rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.75rem;
-    line-height: 1.7;
-    border-bottom: 1px solid var(--border);
-    min-height: 160px;
-  }
-
-  .screen-info { padding: 1.25rem; }
-  .screen-info h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem; }
-  .screen-info p  { font-size: 0.82rem; color: var(--muted); }
-
-  /* ── Pricing ─────────────────────────────────────────────── */
-  .pricing-wrap {
-    max-width: 520px;
-    margin: 0 auto;
-  }
-
-  .price-card {
-    background: var(--card);
-    border: 1px solid rgba(0,255,136,0.35);
-    border-radius: 16px;
-    padding: 3rem 2.5rem;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 0 60px rgba(0,255,136,0.08);
-  }
-
-  .price-card::before {
-    content: '';
-    position: absolute;
-    top: -1px; left: 10%; right: 10%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--green), transparent);
-  }
-
-  .price-badge {
-    display: inline-block;
-    background: var(--green);
-    color: #04090f;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 2px;
-    padding: 0.3rem 1rem;
-    border-radius: 50px;
-    margin-bottom: 1.5rem;
-  }
-
-  .price-name {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-  }
-
-  .price-desc {
-    font-size: 0.9rem;
-    color: var(--muted);
-    margin-bottom: 2rem;
-  }
-
-  .price-amount {
-    margin-bottom: 2rem;
-  }
-
-  .price-currency {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--green);
-    vertical-align: top;
-    line-height: 3rem;
-  }
-
-  .price-number {
-    font-size: 4.5rem;
-    font-weight: 900;
-    color: var(--green);
-    font-family: 'Courier New', monospace;
-    text-shadow: 0 0 30px rgba(0,255,136,0.4);
-    line-height: 1;
-  }
-
-  .price-period {
-    font-size: 0.9rem;
-    color: var(--muted);
-    margin-top: 0.25rem;
-  }
-
-  .price-features {
-    list-style: none;
-    text-align: left;
-    margin-bottom: 2rem;
-  }
-
-  .price-features li {
-    padding: 0.5rem 0;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-
-  .price-features li:last-child { border-bottom: none; }
-
-  .price-features .check { color: var(--green); font-size: 1rem; flex-shrink: 0; }
-
-  .btn-buy {
-    display: block;
-    width: 100%;
-    padding: 1.1rem;
-    background: var(--green);
-    color: #04090f;
-    font-weight: 900;
-    font-size: 1.1rem;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s;
-    letter-spacing: 1px;
-    box-shadow: 0 0 30px rgba(0,255,136,0.3);
-    margin-bottom: 1rem;
-  }
-
-  .btn-buy:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 60px rgba(0,255,136,0.5);
-  }
-
-  .price-note {
-    font-size: 0.78rem;
-    color: var(--muted);
-  }
-
-  .price-guarantee {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 1.5rem;
-    font-size: 0.82rem;
-    color: var(--muted);
-    border-top: 1px solid var(--border);
-    padding-top: 1.5rem;
-  }
-
-  /* ── FAQ ─────────────────────────────────────────────────── */
-  .faq-list { max-width: 720px; }
-
-  .faq-item {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 0.75rem;
-    overflow: hidden;
-    background: var(--card);
-  }
-
-  .faq-q {
-    padding: 1.1rem 1.25rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-    font-size: 0.95rem;
-  }
-
-  .faq-q:hover { color: var(--green); }
-
-  .faq-arrow { color: var(--green); transition: transform 0.2s; font-size: 0.8rem; }
-  .faq-item.open .faq-arrow { transform: rotate(90deg); }
-
-  .faq-a {
-    display: none;
-    padding: 0 1.25rem 1.1rem;
-    font-size: 0.88rem;
-    color: var(--muted);
-    line-height: 1.7;
-    border-top: 1px solid var(--border);
-    padding-top: 1rem;
-  }
-
-  .faq-item.open .faq-a { display: block; }
-
-  /* ── Footer ──────────────────────────────────────────────── */
-  footer {
-    background: var(--bg2);
-    border-top: 1px solid var(--border);
-    padding: 3rem 2rem;
-    text-align: center;
-  }
-
-  .footer-logo {
-    font-size: 1.2rem;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
-    color: var(--green);
-    letter-spacing: 2px;
-    text-shadow: 0 0 16px rgba(0,255,136,0.4);
-    margin-bottom: 0.5rem;
-  }
-
-  .footer-tagline {
-    font-size: 0.85rem;
-    color: var(--muted);
-    margin-bottom: 1.5rem;
-  }
-
-  .footer-links {
-    display: flex;
-    gap: 2rem;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 2rem;
-  }
-
-  .footer-links a {
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.85rem;
-    transition: color 0.2s;
-  }
-
-  .footer-links a:hover { color: var(--green); }
-
-  .footer-copy {
-    font-size: 0.78rem;
-    color: var(--muted);
-  }
-
-  /* ── Divider ─────────────────────────────────────────────── */
-  .divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 0;
-  }
-
-  /* ── RTL / Arabic overrides ──────────────────────────────── */
-  html[dir="rtl"] .feature-card::before {
-    background: linear-gradient(270deg, var(--green), transparent);
-  }
-
-  html[dir="rtl"] .section-sub { margin-left: auto; margin-right: 0; }
-
-  /* ── Responsive ──────────────────────────────────────────── */
-  @media (max-width: 600px) {
-    nav { padding: 0.75rem 1rem; }
-    section { padding: 4rem 1rem; }
-    .price-card { padding: 2rem 1.5rem; }
-    .price-number { font-size: 3.5rem; }
-    .hero-stats { gap: 2rem; }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OPTISEC — Professional Cybersecurity Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ══════════════════════════════════════════
+       TOKENS
+    ══════════════════════════════════════════ */
+    :root {
+      --green:      #00ff88;
+      --green-dim:  #00cc6a;
+      --green-dark: #002d14;
+      --green-glow: rgba(0,255,136,0.18);
+      --bg:         #080c10;
+      --bg2:        #0c1118;
+      --bg3:        #101820;
+      --card:       #0e1620;
+      --border:     #0f2318;
+      --text:       #c8ddc8;
+      --muted:      #5a7a6a;
+      --white:      #ffffff;
+      --red:        #ff4466;
+    }
+
+    /* ══════════════════════════════════════════
+       RESET & BASE
+    ══════════════════════════════════════════ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    body[dir="rtl"] { font-family: 'Space Grotesk', 'Segoe UI', 'Tahoma', Arial, sans-serif; }
+
+    /* ══════════════════════════════════════════
+       SCANLINES
+    ══════════════════════════════════════════ */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,255,136,0.012) 2px,
+        rgba(0,255,136,0.012) 4px
+      );
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* ══════════════════════════════════════════
+       UTILITY
+    ══════════════════════════════════════════ */
+    .accent  { color: var(--green); }
+    .mono    { font-family: 'JetBrains Mono', monospace; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    /* scroll-reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+    .reveal-delay-6 { transition-delay: 0.6s; }
+
+    /* ══════════════════════════════════════════
+       NAV
+    ══════════════════════════════════════════ */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      background: rgba(8,12,16,0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      height: 64px;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--green);
+      text-shadow: 0 0 24px rgba(0,255,136,0.45);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--white); }
+
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--green); }
+
+    .nav-right { display: flex; align-items: center; gap: 14px; }
+
+    .btn-lang {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 16px;
+      color: var(--green);
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-lang:hover { background: var(--green-dark); border-color: var(--green); box-shadow: 0 0 10px var(--green-glow); }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+    }
+
+    /* ══════════════════════════════════════════
+       HERO
+    ══════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      overflow: hidden;
+    }
+
+    /* animated grid */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: gridPan 20s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes gridPan {
+      0%   { background-position: 0 0, 0 0; }
+      100% { background-position: 48px 48px, 48px 48px; }
+    }
+
+    /* radial spotlight */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(0,255,136,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.35);
+      border-radius: 50px;
+      padding: 6px 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      color: var(--green);
+      margin-bottom: 32px;
+      animation: fadeDown 0.7s ease both;
+    }
+
+    .pulse-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulseDot 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.5); }
+      50%       { box-shadow: 0 0 0 7px rgba(0,255,136,0); }
+    }
+
+    .hero h1 {
+      position: relative;
+      font-size: clamp(2.6rem, 7vw, 5rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      color: var(--white);
+      margin-bottom: 22px;
+      animation: fadeDown 0.8s 0.1s ease both;
+    }
+
+    .hero h1 .glow {
+      color: var(--green);
+      text-shadow:
+        0 0 20px rgba(0,255,136,0.6),
+        0 0 60px rgba(0,255,136,0.25);
+    }
+
+    .hero p {
+      position: relative;
+      max-width: 580px;
+      font-size: 1.05rem;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 44px;
+      animation: fadeDown 0.8s 0.2s ease both;
+    }
+
+    .hero-ctas {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeDown 0.8s 0.3s ease both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      color: #000;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+      box-shadow: 0 0 30px rgba(0,255,136,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(0,255,136,0.45); }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 13px 32px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════════
+       STATS BAR
+    ══════════════════════════════════════════ */
+    .stats-bar {
+      position: relative;
+      z-index: 1;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 24px;
+      display: flex;
+      justify-content: center;
+      gap: 64px;
+      flex-wrap: wrap;
+    }
+
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--green);
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ══════════════════════════════════════════
+       SHARED SECTION WRAPPER
+    ══════════════════════════════════════════ */
+    .section {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 100px 24px;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 3px;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.5px;
+      margin-bottom: 14px;
+    }
+
+    .section-sub {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+
+    .section-head { margin-bottom: 0; }
+
+    /* ══════════════════════════════════════════
+       PRODUCTS
+    ══════════════════════════════════════════ */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .product-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 36px 30px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      opacity: 0.6;
+    }
+
+    .product-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(0,255,136,0.25);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,255,136,0.06);
+    }
+
+    .product-card.featured {
+      border-color: rgba(0,255,136,0.2);
+      box-shadow: 0 0 50px rgba(0,255,136,0.05);
+    }
+
+    .product-badge {
+      position: absolute;
+      top: 20px; right: 20px;
+      background: var(--green);
+      color: #000;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      padding: 4px 10px;
+      border-radius: 50px;
+    }
+
+    .product-badge.soon {
+      background: var(--muted);
+      color: var(--bg);
+    }
+
+    body[dir="rtl"] .product-badge { right: auto; left: 20px; }
+
+    .product-icon {
+      width: 54px; height: 54px;
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.15);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 22px;
+    }
+
+    .product-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .product-desc {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 22px;
+      flex-grow: 1;
+    }
+
+    .product-features { list-style: none; margin-bottom: 28px; }
+    .product-features li {
+      font-size: 0.85rem;
+      color: var(--text);
+      padding: 5px 0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .product-features li::before { content: '▸'; color: var(--green); flex-shrink: 0; }
+    body[dir="rtl"] .product-features li { flex-direction: row-reverse; }
+    body[dir="rtl"] .product-features li::before { content: '◂'; }
+
+    .product-price {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+    .product-price span { font-size: 0.95rem; font-weight: 400; color: var(--muted); font-family: 'Space Grotesk', sans-serif; }
+
+    .btn-buy {
+      display: block;
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      color: #000;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.92rem;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.25s;
+      letter-spacing: 0.3px;
+    }
+    .btn-buy:hover { box-shadow: 0 0 30px rgba(0,255,136,0.4); transform: translateY(-1px); }
+    .btn-buy:disabled {
+      background: var(--bg3);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ══════════════════════════════════════════
+       FEATURES
+    ══════════════════════════════════════════ */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 24px;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .feature-card:hover { border-color: rgba(0,255,136,0.2); transform: translateY(-3px); }
+
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 14px;
+    }
+
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* ══════════════════════════════════════════
+       HOW IT WORKS
+    ══════════════════════════════════════════ */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      position: relative;
+    }
+
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 30px 24px;
+      text-align: center;
+      transition: border-color 0.25s;
+    }
+    .step-card:hover { border-color: rgba(0,255,136,0.2); }
+
+    .step-num {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green);
+      margin: 0 auto 18px;
+    }
+
+    .step-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* ══════════════════════════════════════════
+       PAYMENT SECTION
+    ══════════════════════════════════════════ */
+    .payment-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 54px 48px;
+    }
+
+    .payment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 22px;
+      margin-top: 44px;
+    }
+
+    .pay-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 24px;
+      transition: border-color 0.25s;
+    }
+    .pay-card:hover { border-color: rgba(0,255,136,0.2); }
+
+    .pay-icon { font-size: 2rem; margin-bottom: 14px; }
+
+    .pay-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 5px;
+    }
+
+    .pay-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .pay-address {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--green);
+      word-break: break-all;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    body[dir="rtl"] .pay-address { direction: ltr; }
+
+    .pay-holder {
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding-left: 2px;
+      margin-bottom: 14px;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--green-dark);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover, .copy-btn.copied { background: var(--green-dark); border-color: var(--green); }
+
+    .pay-contact {
+      margin-top: 14px;
+      padding: 11px 14px;
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.2);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: var(--green);
+      text-align: center;
+    }
+
+    .pay-steps {
+      margin-top: 44px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .pay-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 18px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    body[dir="rtl"] .pay-step { flex-direction: row-reverse; }
+
+    .pay-step-num {
+      width: 34px; height: 34px;
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.3);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    .pay-step-title { font-size: 0.9rem; font-weight: 600; color: var(--white); margin-bottom: 3px; }
+    .pay-step-desc  { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+    .email-link { color: var(--green); text-decoration: none; font-weight: 600; }
+    .email-link:hover { text-decoration: underline; }
+
+    /* ══════════════════════════════════════════
+       TESTIMONIALS
+    ══════════════════════════════════════════ */
+    .testi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 22px;
+    }
+
+    .testi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 24px;
+      position: relative;
+      transition: border-color 0.25s;
+    }
+    .testi-card:hover { border-color: rgba(0,255,136,0.18); }
+
+    .testi-stars {
+      color: var(--green);
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+
+    .testi-text {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.7;
+      margin-bottom: 22px;
+      font-style: italic;
+    }
+
+    .testi-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .testi-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--green-dark);
+      border: 2px solid rgba(0,255,136,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .testi-name { font-size: 0.88rem; font-weight: 600; color: var(--white); }
+    .testi-role { font-size: 0.75rem; color: var(--muted); }
+
+    /* ══════════════════════════════════════════
+       LICENSE VERIFIER
+    ══════════════════════════════════════════ */
+    .verifier-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 54px 48px;
+      max-width: 640px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .verifier-icon { font-size: 2.5rem; margin-bottom: 18px; }
+
+    .verifier-input-wrap {
+      position: relative;
+      margin: 28px 0 16px;
+    }
+
+    .verifier-input {
+      width: 100%;
+      padding: 14px 20px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      text-align: center;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .verifier-input::placeholder { color: var(--muted); letter-spacing: 0; }
+    .verifier-input:focus { border-color: rgba(0,255,136,0.4); box-shadow: 0 0 0 3px rgba(0,255,136,0.08); }
+    .verifier-input.valid   { border-color: var(--green); }
+    .verifier-input.invalid { border-color: var(--red); }
+
+    .verifier-msg {
+      min-height: 22px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .verifier-msg.ok  { color: var(--green); }
+    .verifier-msg.err { color: var(--red); }
+
+    .btn-verify {
+      padding: 13px 36px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      color: #000;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.92rem;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .btn-verify:hover { box-shadow: 0 0 28px rgba(0,255,136,0.35); transform: translateY(-1px); }
+
+    .verifier-hint {
+      margin-top: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* ══════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════ */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+    .footer-logo span { color: var(--white); }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--green); }
+
+    .footer-copy { font-size: 0.78rem; color: var(--muted); }
+
+    /* ══════════════════════════════════════════
+       MODAL
+    ══════════════════════════════════════════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid rgba(0,255,136,0.3);
+      border-radius: 18px;
+      padding: 42px 38px;
+      max-width: 500px;
+      width: 100%;
+      position: relative;
+      box-shadow: 0 0 80px rgba(0,255,136,0.1);
+      animation: slideUp 0.28s ease both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 18px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+    body[dir="rtl"] .modal-close { right: auto; left: 18px; }
+    .modal-close:hover { color: var(--green); }
+
+    .modal-product { font-size: 1.3rem; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+    .modal-price   { font-family: 'JetBrains Mono', monospace; font-size: 2.1rem; font-weight: 700; color: var(--green); margin-bottom: 26px; }
+
+    .modal-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+
+    .modal-tab {
+      flex: 1;
+      padding: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .modal-tab.active { background: var(--green-dark); border-color: rgba(0,255,136,0.4); color: var(--green); }
+
+    .modal-pane { display: none; }
+    .modal-pane.active { display: block; }
+
+    .modal-addr {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 13px 15px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--green);
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+    body[dir="rtl"] .modal-addr { direction: ltr; }
+
+    .modal-holder-line {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding-left: 2px;
+    }
+
+    .modal-note {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+
+    .modal-email-btn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--green), var(--green-dim));
+      color: #000;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: all 0.25s;
+    }
+    .modal-email-btn:hover { box-shadow: 0 0 28px rgba(0,255,136,0.35); transform: translateY(-1px); }
+
+    .modal-footer-note {
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ══════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════ */
+    @media (max-width: 640px) {
+      .payment-wrap { padding: 32px 20px; }
+      .verifier-box { padding: 36px 20px; }
+      .modal { padding: 32px 22px; }
+      .stats-bar { gap: 28px; }
+    }
+  </style>
 </head>
 <body>
 
-<!-- ── Nav ──────────────────────────────────────────────────── -->
+<!-- ══ NAV ══════════════════════════════════════════ -->
 <nav>
-  <div class="nav-logo">OPTISEC<span>://</span>WIFI</div>
+  <a class="nav-logo" href="#">OPTI<span>SEC</span></a>
+  <div class="nav-links">
+    <a href="#products"   data-en="Products"    data-ar="المنتجات">Products</a>
+    <a href="#features"   data-en="Features"    data-ar="المميزات">Features</a>
+    <a href="#payment"    data-en="Payment"     data-ar="الدفع">Payment</a>
+    <a href="#verify"     data-en="Verify"      data-ar="التحقق">Verify</a>
+  </div>
   <div class="nav-right">
-    <div class="lang-toggle">
-      <button class="lang-btn active" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" onclick="setLang('ar')">AR</button>
-    </div>
-    <a href="#pricing" class="nav-cta" data-en="Buy Now — $199" data-ar="اشتر الآن — 199$">Buy Now — $199</a>
+    <button class="btn-lang" id="langBtn" onclick="toggleLang()">العربية</button>
   </div>
 </nav>
 
-<!-- ── Hero ─────────────────────────────────────────────────── -->
-<section class="hero">
+<!-- ══ HERO ══════════════════════════════════════════ -->
+<section class="hero" id="home">
   <div class="hero-grid"></div>
-  <div class="hero-glow"></div>
-  <div class="hero-content">
-    <div class="hero-badge" data-en="⚡ Professional Network Defense Tool" data-ar="⚡ أداة دفاع شبكي احترافية">⚡ Professional Network Defense Tool</div>
 
-    <h1>
-      <span data-en="Protect Your WiFi<br><span class='accent'>Before</span> Attackers <span class='accent2'>Strike</span>"
-            data-ar="احمِ شبكتك اللاسلكية<br><span class='accent'>قبل</span> أن يضرب <span class='accent2'>المهاجمون</span>">
-        Protect Your WiFi<br><span class="accent">Before</span> Attackers <span class="accent2">Strike</span>
-      </span>
-    </h1>
+  <div class="hero-badge">
+    <span class="pulse-dot"></span>
+    <span data-en="ENTERPRISE CYBERSECURITY TOOLS" data-ar="أدوات أمن سيبراني للمؤسسات">ENTERPRISE CYBERSECURITY TOOLS</span>
+  </div>
 
-    <p class="hero-sub"
-       data-en="Optisec WiFi Monitor is a real-time network defense platform for security professionals. Detect attacks, audit encryption, track devices — all from a single terminal."
-       data-ar="Optisec WiFi Monitor منصة دفاع شبكي فورية لمحترفي الأمن السيبراني. اكتشف الهجمات، راجع التشفير، تتبع الأجهزة — كل ذلك من طرفية واحدة.">
-      Optisec WiFi Monitor is a real-time network defense platform for security professionals. Detect attacks, audit encryption, track devices — all from a single terminal.
-    </p>
+  <h1>
+    <span data-en="Protect Your" data-ar="احمِ شبكتك">Protect Your</span><br>
+    <span class="glow" data-en="Network" data-ar="بذكاء">Network</span>
+    <span data-en=" with Intelligence" data-ar=" بذكاء"> with Intelligence</span>
+  </h1>
 
-    <div class="hero-actions">
-      <a href="#pricing" class="btn-primary"
-         data-en="🛒 Get Optisec — $199" data-ar="🛒 احصل على Optisec — 199$">
-        🛒 Get Optisec — $199
-      </a>
-      <a href="#features" class="btn-secondary"
-         data-en="↓ See Features" data-ar="↓ استعرض المزايا">
-        ↓ See Features
-      </a>
-    </div>
+  <p data-en="Professional-grade WiFi monitoring, SOC operations, and network scanning tools. Built for security engineers who refuse to compromise."
+     data-ar="أدوات احترافية لمراقبة الشبكات اللاسلكية وعمليات مركز الأمن ومسح الشبكات. مصممة لمهندسي الأمن الذين لا يساومون.">
+    Professional-grade WiFi monitoring, SOC operations, and network scanning tools. Built for security engineers who refuse to compromise.
+  </p>
 
-    <div class="hero-stats">
-      <div class="stat">
-        <div class="stat-num">12+</div>
-        <div class="stat-label" data-en="Attack Signatures" data-ar="توقيعات هجوم">Attack Signatures</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">∞</div>
-        <div class="stat-label" data-en="Devices Monitored" data-ar="أجهزة مراقبة">Devices Monitored</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">AI</div>
-        <div class="stat-label" data-en="Threat Analysis" data-ar="تحليل التهديدات">Threat Analysis</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">v1.0</div>
-        <div class="stat-label" data-en="BlackArch Linux" data-ar="بلاك آرش لينكس">BlackArch Linux</div>
-      </div>
-    </div>
+  <div class="hero-ctas">
+    <a href="#products" class="btn-primary" data-en="View Products" data-ar="عرض المنتجات">View Products</a>
+    <a href="#features"  class="btn-outline" data-en="See Features"  data-ar="اكتشف المميزات">See Features</a>
   </div>
 </section>
 
-<!-- ── Terminal Demo ─────────────────────────────────────────── -->
-<div class="terminal-section">
-  <div class="terminal-wrap">
-    <div class="terminal-bar">
-      <div class="dot dot-r"></div>
-      <div class="dot dot-y"></div>
-      <div class="dot dot-g"></div>
-      <div class="terminal-title">optisec@blackarch:~</div>
+<!-- ══ STATS BAR ══════════════════════════════════════════ -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-num">500+</div>
+    <div class="stat-label" data-en="ACTIVE CLIENTS" data-ar="عميل نشط">ACTIVE CLIENTS</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">99.9%</div>
+    <div class="stat-label" data-en="UPTIME RATE" data-ar="معدل التشغيل">UPTIME RATE</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">24/7</div>
+    <div class="stat-label" data-en="SUPPORT" data-ar="الدعم الفني">SUPPORT</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">256-bit</div>
+    <div class="stat-label" data-en="ENCRYPTION" data-ar="تشفير">ENCRYPTION</div>
+  </div>
+</div>
+
+<!-- ══ PRODUCTS ══════════════════════════════════════════ -->
+<div class="section" id="products">
+  <div class="reveal">
+    <div class="section-label mono" data-en="// PRODUCTS" data-ar="// المنتجات">// PRODUCTS</div>
+    <h2 class="section-title">
+      <span data-en="Choose Your " data-ar="اختر أداتك ">Choose Your </span>
+      <span class="accent" data-en="Defense Tool" data-ar="الدفاعية">Defense Tool</span>
+    </h2>
+    <p class="section-sub" data-en="Professional security tools tailored for every team size and threat model."
+       data-ar="أدوات أمنية احترافية مصممة لكل حجم فريق ونموذج تهديد.">
+      Professional security tools tailored for every team size and threat model.
+    </p>
+  </div>
+
+  <div class="products-grid">
+
+    <!-- WiFi Monitor -->
+    <div class="product-card featured reveal reveal-delay-1">
+      <span class="product-badge" data-en="POPULAR" data-ar="الأكثر شيوعاً">POPULAR</span>
+      <div class="product-icon">📡</div>
+      <div class="product-name" data-en="OPTISEC WiFi Monitor" data-ar="مراقب WiFi أوبتيسيك">OPTISEC WiFi Monitor</div>
+      <p class="product-desc"
+         data-en="Advanced wireless network monitoring with real-time rogue AP detection, device fingerprinting, and deep packet inspection."
+         data-ar="مراقبة متقدمة للشبكات اللاسلكية مع كشف نقاط الوصول المارقة في الوقت الحقيقي وبصمة الأجهزة والتفتيش العميق للحزم.">
+        Advanced wireless network monitoring with real-time rogue AP detection, device fingerprinting, and deep packet inspection.
+      </p>
+      <ul class="product-features">
+        <li data-en="Real-time device discovery" data-ar="اكتشاف الأجهزة في الوقت الحقيقي">Real-time device discovery</li>
+        <li data-en="Rogue AP &amp; evil-twin detection" data-ar="كشف نقاط الوصول المزيفة">Rogue AP &amp; evil-twin detection</li>
+        <li data-en="Packet capture &amp; deep inspection" data-ar="التقاط الحزم والتفتيش العميق">Packet capture &amp; deep inspection</li>
+        <li data-en="Signal heatmap visualization" data-ar="خرائط حرارية لقوة الإشارة">Signal heatmap visualization</li>
+        <li data-en="Automated threat reports" data-ar="تقارير تهديدات تلقائية">Automated threat reports</li>
+      </ul>
+      <div class="product-price">$299 <span data-en="/ one-time" data-ar="/ دفعة واحدة">/ one-time</span></div>
+      <button class="btn-buy" onclick="openModal('wifi')" data-en="Buy Now" data-ar="اشتر الآن">Buy Now</button>
     </div>
-    <div class="terminal-body">
-      <div><span class="t-prompt">root@blackarch</span><span class="t-dim">:</span><span class="t-info">~/optisec</span><span class="t-dim">$</span> <span class="t-cmd">sudo python main.py tui -m wlan1 -i wlan0</span></div>
-      <div class="t-ok">✓  License verified: LICENSED TO: Ehsan  |  OPS-34AE-9729-82BD-20C2</div>
-      <div class="t-ok">✓  wlan1 is in monitor mode</div>
-      <div class="t-ok">✓  DeviceMonitor started</div>
-      <div class="t-ok">✓  AttackDetector started</div>
-      <div class="t-ok">✓  EncryptionAuditor started</div>
-      <div class="t-ok">✓  AIEngine started  <span class="t-dim">[Groq llama-3.3-70b-versatile]</span></div>
-      <div>&nbsp;</div>
-      <div><span class="t-warn">⚠  [MEDIUM] NEW_DEVICE — EC:75:0C:95:A6:02  TP-Link Router detected</span></div>
-      <div><span class="t-err">🚨 [CRITICAL] DEAUTH_FLOOD — AA:BB:CC:11:22:33 sending 847 frames/60s</span></div>
-      <div><span class="t-info">ℹ  [INFO] WPA3 network detected — Security score: 95/100</span></div>
-      <div><span class="t-ok">✓  PDF report saved: reports/2026-06-22_14-30.pdf</span></div>
-      <div><span class="t-dim">AI &gt; Groq analysis complete — 3 high-risk devices identified<span class="t-blink">▌</span></span></div>
+
+    <!-- SOC Platform -->
+    <div class="product-card reveal reveal-delay-2">
+      <div class="product-icon">🛡️</div>
+      <div class="product-name" data-en="OPTISEC SOC Platform" data-ar="منصة SOC أوبتيسيك">OPTISEC SOC Platform</div>
+      <p class="product-desc"
+         data-en="Complete Security Operations Center platform with log aggregation, incident management, and threat intelligence correlation."
+         data-ar="منصة كاملة لمركز العمليات الأمنية مع تجميع السجلات وإدارة الحوادث وربط معلومات التهديدات.">
+        Complete Security Operations Center platform with log aggregation, incident management, and threat intelligence correlation.
+      </p>
+      <ul class="product-features">
+        <li data-en="Centralized SIEM-lite log engine" data-ar="محرك سجلات مركزي">Centralized SIEM-lite log engine</li>
+        <li data-en="Incident ticketing &amp; escalation" data-ar="تذاكر الحوادث والتصعيد">Incident ticketing &amp; escalation</li>
+        <li data-en="Threat intelligence feeds" data-ar="تغذية معلومات التهديدات">Threat intelligence feeds</li>
+        <li data-en="Custom dashboards &amp; alerts" data-ar="لوحات تحكم وتنبيهات مخصصة">Custom dashboards &amp; alerts</li>
+        <li data-en="Multi-analyst collaboration" data-ar="تعاون متعدد المحللين">Multi-analyst collaboration</li>
+      </ul>
+      <div class="product-price">$99 <span data-en="/ year" data-ar="/ سنة">/ year</span></div>
+      <button class="btn-buy" onclick="openModal('soc')" data-en="Buy Now" data-ar="اشتر الآن">Buy Now</button>
+    </div>
+
+    <!-- Net Scanner -->
+    <div class="product-card reveal reveal-delay-3">
+      <span class="product-badge soon" data-en="COMING SOON" data-ar="قريباً">COMING SOON</span>
+      <div class="product-icon">🔭</div>
+      <div class="product-name" data-en="OPTISEC Net Scanner" data-ar="ماسح الشبكة أوبتيسيك">OPTISEC Net Scanner</div>
+      <p class="product-desc"
+         data-en="Next-generation network scanner with vulnerability discovery, asset inventory, and compliance reporting built in."
+         data-ar="ماسح شبكة من الجيل القادم مع اكتشاف الثغرات وجرد الأصول وتقارير الامتثال.">
+        Next-generation network scanner with vulnerability discovery, asset inventory, and compliance reporting built in.
+      </p>
+      <ul class="product-features">
+        <li data-en="Full subnet &amp; port scanning" data-ar="مسح الشبكة الفرعية والمنافذ">Full subnet &amp; port scanning</li>
+        <li data-en="Vulnerability discovery engine" data-ar="محرك اكتشاف الثغرات">Vulnerability discovery engine</li>
+        <li data-en="Asset inventory &amp; tagging" data-ar="جرد الأصول والوسوم">Asset inventory &amp; tagging</li>
+        <li data-en="Compliance report export" data-ar="تصدير تقارير الامتثال">Compliance report export</li>
+        <li data-en="Scheduled automated scans" data-ar="مسح آلي مجدول">Scheduled automated scans</li>
+      </ul>
+      <div class="product-price">$149 <span data-en="/ year" data-ar="/ سنة">/ year</span></div>
+      <button class="btn-buy" disabled data-en="Coming Soon" data-ar="قريباً">Coming Soon</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ FEATURES ══════════════════════════════════════════ -->
+<div style="background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+<div class="section" id="features">
+  <div class="reveal" style="text-align:center; margin-bottom:52px;">
+    <div class="section-label mono" data-en="// FEATURES" data-ar="// المميزات">// FEATURES</div>
+    <h2 class="section-title">
+      <span data-en="Why Security Teams " data-ar="لماذا يختار فرق الأمن ">Why Security Teams </span>
+      <span class="accent" data-en="Choose OPTISEC" data-ar="أوبتيسيك">Choose OPTISEC</span>
+    </h2>
+    <p class="section-sub" style="margin:0 auto;"
+       data-en="Purpose-built for the modern threat landscape."
+       data-ar="مصممة للمشهد التهديدي الحديث.">
+      Purpose-built for the modern threat landscape.
+    </p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card reveal reveal-delay-1">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title" data-en="Real-Time Detection" data-ar="كشف فوري">Real-Time Detection</div>
+      <p class="feature-desc" data-en="Sub-second threat detection with live alerting so your team responds before damage occurs."
+         data-ar="كشف التهديدات في أقل من ثانية مع تنبيهات مباشرة حتى يستجيب فريقك قبل وقوع الضرر.">
+        Sub-second threat detection with live alerting so your team responds before damage occurs.
+      </p>
+    </div>
+    <div class="feature-card reveal reveal-delay-2">
+      <div class="feature-icon">🔐</div>
+      <div class="feature-title" data-en="256-bit Encryption" data-ar="تشفير 256-بت">256-bit Encryption</div>
+      <p class="feature-desc" data-en="All data in transit and at rest is protected with military-grade AES-256 encryption."
+         data-ar="جميع البيانات أثناء النقل وفي حالة السكون محمية بتشفير AES-256 بدرجة عسكرية.">
+        All data in transit and at rest is protected with military-grade AES-256 encryption.
+      </p>
+    </div>
+    <div class="feature-card reveal reveal-delay-3">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title" data-en="Advanced Analytics" data-ar="تحليلات متقدمة">Advanced Analytics</div>
+      <p class="feature-desc" data-en="Rich dashboards and exportable reports give full visibility into your network posture."
+         data-ar="لوحات تحكم غنية وتقارير قابلة للتصدير توفر رؤية كاملة لوضعك الأمني.">
+        Rich dashboards and exportable reports give full visibility into your network posture.
+      </p>
+    </div>
+    <div class="feature-card reveal reveal-delay-4">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title" data-en="AI-Powered Insights" data-ar="رؤى مدعومة بالذكاء الاصطناعي">AI-Powered Insights</div>
+      <p class="feature-desc" data-en="Machine learning models baseline normal traffic and flag anomalies automatically."
+         data-ar="نماذج التعلم الآلي تضع أساساً لحركة المرور الطبيعية وتُعلم عن الشذوذات تلقائياً.">
+        Machine learning models baseline normal traffic and flag anomalies automatically.
+      </p>
+    </div>
+    <div class="feature-card reveal reveal-delay-5">
+      <div class="feature-icon">🌍</div>
+      <div class="feature-title" data-en="Multi-Language UI" data-ar="واجهة متعددة اللغات">Multi-Language UI</div>
+      <p class="feature-desc" data-en="Full Arabic and English support with seamless RTL layout switching."
+         data-ar="دعم كامل للعربية والإنجليزية مع تبديل سلس لتخطيط RTL.">
+        Full Arabic and English support with seamless RTL layout switching.
+      </p>
+    </div>
+    <div class="feature-card reveal reveal-delay-6">
+      <div class="feature-icon">🛠️</div>
+      <div class="feature-title" data-en="24/7 Expert Support" data-ar="دعم خبراء على مدار الساعة">24/7 Expert Support</div>
+      <p class="feature-desc" data-en="Dedicated security engineers available around the clock to help you resolve incidents fast."
+         data-ar="مهندسو أمن متخصصون متاحون على مدار الساعة لمساعدتك في حل الحوادث بسرعة.">
+        Dedicated security engineers available around the clock to help you resolve incidents fast.
+      </p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ HOW IT WORKS ══════════════════════════════════════════ -->
+<div class="section" id="howitworks">
+  <div class="reveal" style="text-align:center; margin-bottom:52px;">
+    <div class="section-label mono" data-en="// HOW IT WORKS" data-ar="// كيف يعمل">// HOW IT WORKS</div>
+    <h2 class="section-title">
+      <span data-en="Get Protected in " data-ar="احصل على الحماية في ">Get Protected in </span>
+      <span class="accent" data-en="4 Simple Steps" data-ar="4 خطوات بسيطة">4 Simple Steps</span>
+    </h2>
+  </div>
+
+  <div class="steps-grid">
+    <div class="step-card reveal reveal-delay-1">
+      <div class="step-num">01</div>
+      <div class="step-title" data-en="Choose a Plan" data-ar="اختر خطة">Choose a Plan</div>
+      <p class="step-desc" data-en="Pick the tool that matches your security needs and team size."
+         data-ar="اختر الأداة التي تناسب احتياجاتك الأمنية وحجم فريقك.">
+        Pick the tool that matches your security needs and team size.
+      </p>
+    </div>
+    <div class="step-card reveal reveal-delay-2">
+      <div class="step-num">02</div>
+      <div class="step-title" data-en="Complete Payment" data-ar="أتمّ الدفع">Complete Payment</div>
+      <p class="step-desc" data-en="Pay securely via USDT TRC20 or Mastercard transfer."
+         data-ar="ادفع بأمان عبر USDT TRC20 أو تحويل ماستركارد.">
+        Pay securely via USDT TRC20 or Mastercard transfer.
+      </p>
+    </div>
+    <div class="step-card reveal reveal-delay-3">
+      <div class="step-num">03</div>
+      <div class="step-title" data-en="Email Proof" data-ar="أرسل إثبات الدفع">Email Proof</div>
+      <p class="step-desc" data-en="Send your transaction screenshot or hash to our support email."
+         data-ar="أرسل لقطة شاشة معاملتك أو رمزها إلى بريد الدعم.">
+        Send your transaction screenshot or hash to our support email.
+      </p>
+    </div>
+    <div class="step-card reveal reveal-delay-4">
+      <div class="step-num">04</div>
+      <div class="step-title" data-en="Receive License" data-ar="استلم الترخيص">Receive License</div>
+      <p class="step-desc" data-en="Get your license key and download link delivered within 24 hours."
+         data-ar="احصل على مفتاح الترخيص ورابط التنزيل خلال 24 ساعة.">
+        Get your license key and download link delivered within 24 hours.
+      </p>
     </div>
   </div>
 </div>
 
-<!-- ── Features ──────────────────────────────────────────────── -->
-<section id="features">
-  <div class="container">
-    <div class="section-label" data-en="What You Get" data-ar="ما ستحصل عليه">What You Get</div>
-    <h2 class="section-title"
-        data-en="Enterprise-Grade Defense.<br>Terminal Native."
-        data-ar="دفاع بمستوى المؤسسات.<br>مصمم للطرفية.">
-      Enterprise-Grade Defense.<br>Terminal Native.
-    </h2>
-    <p class="section-sub"
-       data-en="Every feature is built for offensive security researchers and network defenders who live in the terminal."
-       data-ar="كل ميزة مُصممة لباحثي الأمن الهجومي والمدافعين عن الشبكات الذين يعيشون في الطرفية.">
-      Every feature is built for offensive security researchers and network defenders who live in the terminal.
-    </p>
-
-    <div class="features-grid">
-
-      <div class="feature-card">
-        <span class="feature-icon">📡</span>
-        <h3 data-en="Real-Time Attack Detection" data-ar="كشف الهجمات الفوري">Real-Time Attack Detection</h3>
-        <p data-en="Detects Deauth floods, Evil Twin APs, ARP spoofing, PMKID attacks, and Rogue access points the moment they appear on the network." data-ar="يكتشف فيضانات إلغاء المصادقة، نقاط الوصول المزدوجة، انتحال ARP، وهجمات PMKID فور ظهورها على الشبكة.">
-          Detects Deauth floods, Evil Twin APs, ARP spoofing, PMKID attacks, and Rogue access points the moment they appear on the network.
-        </p>
-        <span class="tag tag-red" data-en="CRITICAL DEFENSE" data-ar="دفاع حرج">CRITICAL DEFENSE</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">🔒</span>
-        <h3 data-en="Encryption Auditor" data-ar="مدقق التشفير">Encryption Auditor</h3>
-        <p data-en="Scans all nearby networks for WPA2/WPA3 compliance, WPS vulnerabilities, and PMF status. Assigns a security score 0–100 for every SSID." data-ar="يفحص جميع الشبكات المجاورة لمطابقة WPA2/WPA3، ثغرات WPS، وحالة PMF. يعطي كل SSID درجة أمان من 0 إلى 100.">
-          Scans all nearby networks for WPA2/WPA3 compliance, WPS vulnerabilities, and PMF status. Assigns a security score 0–100 for every SSID.
-        </p>
-        <span class="tag tag-cyan" data-en="PASSIVE SCAN" data-ar="فحص سلبي">PASSIVE SCAN</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">🤖</span>
-        <h3 data-en="AI Threat Analysis" data-ar="تحليل التهديدات بالذكاء الاصطناعي">AI Threat Analysis</h3>
-        <p data-en="Powered by Groq llama-3.3-70b-versatile. Generates bilingual (Arabic/English) threat summaries, per-device risk scores 0–100, and actionable recommendations." data-ar="مدعوم بـ Groq llama-3.3-70b-versatile. يولد ملخصات تهديدات ثنائية اللغة (عربي/إنجليزي)، ودرجات مخاطر لكل جهاز، وتوصيات قابلة للتنفيذ.">
-          Powered by Groq llama-3.3-70b-versatile. Generates bilingual (Arabic/English) threat summaries, per-device risk scores 0–100, and actionable recommendations.
-        </p>
-        <span class="tag tag-yellow" data-en="GROQ POWERED" data-ar="مدعوم بـ Groq">GROQ POWERED</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">🖥️</span>
-        <h3 data-en="Rich TUI Dashboard" data-ar="لوحة تحكم طرفية متقدمة">Rich TUI Dashboard</h3>
-        <p data-en="6-panel terminal dashboard: live alerts, device table, attack log, network selector, encryption audit, and AI insights. Updates every second." data-ar="لوحة تحكم طرفية بـ 6 نوافذ: تنبيهات مباشرة، جدول الأجهزة، سجل الهجمات، محدد الشبكة، مراجعة التشفير، ورؤى الذكاء الاصطناعي. تحديث كل ثانية.">
-          6-panel terminal dashboard: live alerts, device table, attack log, network selector, encryption audit, and AI insights. Updates every second.
-        </p>
-        <span class="tag tag-green" data-en="REAL-TIME" data-ar="فوري">REAL-TIME</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">📱</span>
-        <h3 data-en="Telegram Instant Alerts" data-ar="تنبيهات تيليغرام الفورية">Telegram Instant Alerts</h3>
-        <p data-en="CRITICAL and HIGH attacks fire instantly to your Telegram bot. MEDIUM alerts batch every 5 minutes. Never miss a threat even when away from terminal." data-ar="تُرسل الهجمات الحرجة والعالية فوراً إلى بوت تيليغرام الخاص بك. تنبيهات MEDIUM تُجمَّع كل 5 دقائق. لا تفوتك أي تهديدات حتى بعيداً عن الطرفية.">
-          CRITICAL and HIGH attacks fire instantly to your Telegram bot. MEDIUM alerts batch every 5 minutes. Never miss a threat even when away from terminal.
-        </p>
-        <span class="tag tag-cyan" data-en="INSTANT PUSH" data-ar="إشعار فوري">INSTANT PUSH</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">📄</span>
-        <h3 data-en="PDF Session Reports" data-ar="تقارير PDF للجلسة">PDF Session Reports</h3>
-        <p data-en="Auto-generates professional branded PDF reports: session summary, devices table, full alerts log, and encryption audit. Press R in TUI to trigger instantly." data-ar="يولد تلقائياً تقارير PDF احترافية بالعلامة التجارية: ملخص الجلسة، جدول الأجهزة، سجل التنبيهات الكامل، ومراجعة التشفير. اضغط R في لوحة التحكم لتشغيلها فوراً.">
-          Auto-generates professional branded PDF reports: session summary, devices table, full alerts log, and encryption audit. Press R in TUI to trigger instantly.
-        </p>
-        <span class="tag tag-green" data-en="ONE KEYPRESS" data-ar="ضغطة واحدة">ONE KEYPRESS</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">📡</span>
-        <h3 data-en="Multi-Network Selector" data-ar="محدد الشبكات المتعددة">Multi-Network Selector</h3>
-        <p data-en="See all detected SSIDs color-coded by security score. Navigate with N/P keys, instantly filter the dashboard to any network for focused analysis." data-ar="اعرض جميع SSIDs المكتشفة مرمزة بالألوان وفق درجة الأمان. تنقل بمفاتيح N/P، وصفِّ لوحة التحكم لأي شبكة لتحليل مركّز.">
-          See all detected SSIDs color-coded by security score. Navigate with N/P keys, instantly filter the dashboard to any network for focused analysis.
-        </p>
-        <span class="tag tag-cyan" data-en="MULTI-NETWORK" data-ar="متعدد الشبكات">MULTI-NETWORK</span>
-      </div>
-
-      <div class="feature-card">
-        <span class="feature-icon">🔑</span>
-        <h3 data-en="License & OUI Vendor ID" data-ar="ترخيص ومعرّف بائع OUI">License & OUI Vendor ID</h3>
-        <p data-en="Machine-bound license key generated on first run. Static OUI table covers Apple, Samsung, Huawei, Cisco, TP-Link, Alfa, Intel with manuf library fallback." data-ar="مفتاح ترخيص مرتبط بالجهاز يُولَّد عند أول تشغيل. جدول OUI يغطي Apple، Samsung، Huawei، Cisco، TP-Link، Alfa، Intel مع مكتبة manuf كخيار بديل.">
-          Machine-bound license key generated on first run. Static OUI table covers Apple, Samsung, Huawei, Cisco, TP-Link, Alfa, Intel with manuf library fallback.
-        </p>
-        <span class="tag tag-yellow" data-en="ANTI-PIRACY" data-ar="حماية من القرصنة">ANTI-PIRACY</span>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ── Screenshots ───────────────────────────────────────────── -->
-<section class="screenshots" id="screenshots">
-  <div class="container">
-    <div class="section-label" data-en="Dashboard Preview" data-ar="معاينة لوحة التحكم">Dashboard Preview</div>
-    <h2 class="section-title"
-        data-en="Everything Visible.<br>Nothing Hidden."
-        data-ar="كل شيء مرئي.<br>لا شيء مخفي.">
-      Everything Visible.<br>Nothing Hidden.
-    </h2>
-    <p class="section-sub"
-       data-en="Six live panels built for terminal warriors. Runs full-screen in any 220×50 terminal."
-       data-ar="ست نوافذ مباشرة مصممة لمحاربي الطرفية. تعمل بملء الشاشة في أي طرفية 220×50.">
-      Six live panels built for terminal warriors. Runs full-screen in any 220×50 terminal.
-    </p>
-
-    <div class="screen-grid">
-
-      <div class="screen-card">
-        <div class="screen-preview">
-          <div style="color:#00ff88;font-weight:700;">┌─ Devices (8) ──────────────────┐</div>
-          <div><span style="color:#00d4ff;">EC:75:0C:95:A6:02</span> <span style="color:#6b7fa0;">192.168.1.1</span>  <span style="color:#fff;">TP-Link</span>  <span style="color:#00ff88;">✓ OK</span></div>
-          <div><span style="color:#00d4ff;">B8:27:EB:12:34:56</span> <span style="color:#6b7fa0;">192.168.1.5</span>  <span style="color:#fff;">Samsung</span>  <span style="color:#ffb800;">? Unknown</span></div>
-          <div><span style="color:#00d4ff;">AA:BB:CC:11:22:33</span> <span style="color:#6b7fa0;">192.168.1.7</span>  <span style="color:#fff;">Unknown</span>  <span style="color:#ff3b5c;">⚠ Alert</span></div>
-          <div><span style="color:#00d4ff;">44:2A:60:FF:EE:DD</span> <span style="color:#6b7fa0;">192.168.1.9</span>  <span style="color:#fff;">Apple   </span>  <span style="color:#00ff88;">✓ OK</span></div>
-          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
-        </div>
-        <div class="screen-info">
-          <h4 data-en="Device Monitor Panel" data-ar="نافذة مراقبة الأجهزة">Device Monitor Panel</h4>
-          <p data-en="Real-time device table. Green = whitelisted, yellow = unknown, red = has active alerts." data-ar="جدول الأجهزة الفوري. أخضر = في القائمة البيضاء، أصفر = غير معروف، أحمر = له تنبيهات نشطة.">Real-time device table. Green = whitelisted, yellow = unknown, red = has active alerts.</p>
-        </div>
-      </div>
-
-      <div class="screen-card">
-        <div class="screen-preview">
-          <div style="color:#ff3b5c;font-weight:700;">┌─ Live Alerts ──────────────────┐</div>
-          <div><span style="color:#6b7fa0;">14:32</span> <span style="color:#ff3b5c;font-weight:700;">[CRITICAL] DEAUTH_FLOOD</span></div>
-          <div><span style="color:#6b7fa0;">     MAC: AA:BB:CC:11:22:33</span></div>
-          <div><span style="color:#ffb800;">14:30</span> <span style="color:#ffb800;">[MEDIUM]   WPS_ENABLED</span></div>
-          <div><span style="color:#6b7fa0;">     MyNetwork — vulnerability</span></div>
-          <div><span style="color:#00ff88;">14:28</span> <span style="color:#00ff88;">[INFO]     NEW_DEVICE</span></div>
-          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
-        </div>
-        <div class="screen-info">
-          <h4 data-en="Live Alerts Panel" data-ar="نافذة التنبيهات المباشرة">Live Alerts Panel</h4>
-          <p data-en="Real-time alert feed with Time | Type | MAC | Details. Red = CRITICAL, yellow = MEDIUM, green = INFO." data-ar="تدفق تنبيهات مباشر مع الوقت | النوع | MAC | التفاصيل. أحمر = حرج، أصفر = متوسط، أخضر = معلومة.">Real-time alert feed with Time | Type | MAC | Details. Red = CRITICAL, yellow = MEDIUM, green = INFO.</p>
-        </div>
-      </div>
-
-      <div class="screen-card">
-        <div class="screen-preview">
-          <div style="color:#a855f7;font-weight:700;">┌─ AI Threat Analysis ───────────┐</div>
-          <div><span style="color:#6b7fa0;">Network risk avg: </span><span style="color:#ffb800;font-weight:700;">43/100</span></div>
-          <div><span style="color:#6b7fa0;">Top risk devices:</span></div>
-          <div>  <span style="color:#00d4ff;">AA:BB:CC:11:22:33</span> <span style="color:#ff3b5c;font-weight:700;">risk=15</span></div>
-          <div>  <span style="color:#00d4ff;">B8:27:EB:12:34:56</span> <span style="color:#ffb800;font-weight:700;">risk=45</span></div>
-          <div><span style="color:#6b7fa0;">Groq: 3 critical patterns found</span></div>
-          <div style="color:#6b7fa0;">└────────────────────────────────┘</div>
-        </div>
-        <div class="screen-info">
-          <h4 data-en="AI Threat Analysis Panel" data-ar="نافذة تحليل التهديدات بالذكاء الاصطناعي">AI Threat Analysis Panel</h4>
-          <p data-en="Rule-based device risk scores plus Groq LLM threat summary. Updated every 5 minutes or on demand." data-ar="درجات مخاطر الأجهزة المستندة إلى القواعد بالإضافة إلى ملخص تهديدات Groq LLM. يُحدَّث كل 5 دقائق أو عند الطلب.">Rule-based device risk scores plus Groq LLM threat summary. Updated every 5 minutes or on demand.</p>
-        </div>
-      </div>
-
-      <div class="screen-card">
-        <div class="screen-preview">
-          <div style="color:#0070ff;font-weight:700;">┌─ Networks ▶ MyHome ─ n/p=select ┐</div>
-          <div><span style="color:#00d4ff;">▶</span> <span style="color:#00ff88;">MyHome     </span> <span style="color:#00ff88;">WPA2-PSK</span> <span style="color:#ffb800;">75</span> <span style="color:#00ff88;">N</span></div>
-          <div>  <span style="color:#ffb800;">Office_5G  </span> <span style="color:#00d4ff;">WPA2    </span> <span style="color:#ffb800;">55</span> <span style="color:#ff3b5c;">Y</span></div>
-          <div>  <span style="color:#ff3b5c;">(hidden)   </span> <span style="color:#ff3b5c;">OPEN    </span> <span style="color:#ff3b5c;">10</span> <span style="color:#00ff88;">N</span></div>
-          <div>  <span style="color:#00ff88;">SecureNet  </span> <span style="color:#00ff88;">WPA3    </span> <span style="color:#00ff88;">95</span> <span style="color:#00ff88;">N</span></div>
-          <div style="color:#6b7fa0;">└──────────────────────────────────┘</div>
-        </div>
-        <div class="screen-info">
-          <h4 data-en="Multi-Network Selector" data-ar="محدد الشبكات المتعددة">Multi-Network Selector</h4>
-          <p data-en="All detected SSIDs with encryption, score, and WPS. Color-coded: green = safe, yellow = warning, red = threat." data-ar="جميع SSIDs المكتشفة مع التشفير والدرجة وWPS. مرمزة بالألوان: أخضر = آمن، أصفر = تحذير، أحمر = تهديد.">All detected SSIDs with encryption, score, and WPS. Color-coded: green = safe, yellow = warning, red = threat.</p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ── Pricing ───────────────────────────────────────────────── -->
-<section id="pricing">
-  <div class="container">
-    <div style="text-align:center; margin-bottom: 3.5rem;">
-      <div class="section-label" data-en="Simple Pricing" data-ar="سعر بسيط">Simple Pricing</div>
-      <h2 class="section-title"
-          data-en="One Tool. One Price. Forever."
-          data-ar="أداة واحدة. سعر واحد. للأبد.">
-        One Tool. One Price. Forever.
+<!-- ══ PAYMENT ══════════════════════════════════════════ -->
+<div style="background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:100px 24px;" id="payment">
+  <div style="max-width:1140px; margin:0 auto;">
+    <div class="reveal" style="text-align:center; margin-bottom:52px;">
+      <div class="section-label mono" data-en="// PAYMENT" data-ar="// الدفع">// PAYMENT</div>
+      <h2 class="section-title">
+        <span class="accent" data-en="Payment " data-ar="طرق ">Payment </span>
+        <span data-en="Methods" data-ar="الدفع">Methods</span>
       </h2>
-      <p class="section-sub" style="margin: 0 auto;"
-         data-en="No subscriptions. No renewals. Pay once, own forever."
-         data-ar="لا اشتراكات. لا تجديدات. ادفع مرة واحدة، امتلكه للأبد.">
-        No subscriptions. No renewals. Pay once, own forever.
+      <p class="section-sub" style="margin:0 auto;"
+         data-en="Two secure payment options accepted worldwide."
+         data-ar="خياران آمنان للدفع مقبولان في جميع أنحاء العالم.">
+        Two secure payment options accepted worldwide.
       </p>
     </div>
 
-    <div class="pricing-wrap">
-      <div class="price-card">
-        <div class="price-badge" data-en="LIFETIME LICENSE" data-ar="ترخيص مدى الحياة">LIFETIME LICENSE</div>
-        <div class="price-name" data-en="Optisec WiFi Monitor" data-ar="Optisec WiFi Monitor">Optisec WiFi Monitor</div>
-        <div class="price-desc"
-             data-en="Professional network defense for BlackArch Linux"
-             data-ar="دفاع شبكي احترافي لـ BlackArch Linux">
-          Professional network defense for BlackArch Linux
+    <div class="payment-wrap reveal">
+      <div class="payment-grid">
+
+        <!-- USDT -->
+        <div class="pay-card">
+          <div class="pay-icon">💎</div>
+          <div class="pay-title">USDT TRC20</div>
+          <div class="pay-sub" data-en="Tether on TRON network — fast &amp; low fees" data-ar="تيثر على شبكة ترون — سريع ورسوم منخفضة">Tether on TRON network — fast &amp; low fees</div>
+          <div class="pay-address">
+            <span id="usdtAddr" class="mono">TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho</span>
+            <button class="copy-btn" onclick="copyAddr('usdtAddr',this)" data-en="Copy" data-ar="نسخ">Copy</button>
+          </div>
         </div>
 
-        <div class="price-amount">
-          <span class="price-currency">$</span>
-          <span class="price-number">199</span>
-          <div class="price-period" data-en="one-time payment — no subscription" data-ar="دفعة واحدة — بدون اشتراك">one-time payment — no subscription</div>
+        <!-- Mastercard -->
+        <div class="pay-card">
+          <div class="pay-icon">💳</div>
+          <div class="pay-title" data-en="Mastercard / Super Key" data-ar="ماستركارد / السوبر كي">Mastercard / Super Key</div>
+          <div class="pay-sub" data-en="Direct card transfer — contact us to complete" data-ar="تحويل مباشر بالبطاقة — تواصل معنا لإتمامه">Direct card transfer — contact us to complete</div>
+          <div class="pay-address">
+            <span id="cardNum" class="mono">Mastercard ending in 2492</span>
+            <button class="copy-btn" onclick="copyAddr('cardNum',this)" data-en="Copy" data-ar="نسخ">Copy</button>
+          </div>
+          <div class="pay-holder" data-en="Cardholder: IHSAN ALI ATIYYA" data-ar="حامل البطاقة: إحسان علي عطية">Cardholder: IHSAN ALI ATIYYA</div>
+          <div class="pay-contact" data-en="Contact us by email to complete payment transfer" data-ar="تواصل معنا عبر البريد الإلكتروني لإتمام تحويل الدفع">
+            Contact us by email to complete payment transfer
+          </div>
         </div>
 
-        <ul class="price-features">
-          <li><span class="check">✓</span> <span data-en="Full source code (Python)" data-ar="الكود المصدري الكامل (Python)">Full source code (Python)</span></li>
-          <li><span class="check">✓</span> <span data-en="Real-time attack detection (12+ signatures)" data-ar="كشف الهجمات الفوري (أكثر من 12 توقيعاً)">Real-time attack detection (12+ signatures)</span></li>
-          <li><span class="check">✓</span> <span data-en="AI analysis via Groq llama-3.3-70b" data-ar="تحليل ذكاء اصطناعي عبر Groq llama-3.3-70b">AI analysis via Groq llama-3.3-70b</span></li>
-          <li><span class="check">✓</span> <span data-en="Rich TUI + Flask web dashboard" data-ar="لوحة تحكم TUI وFlask للويب">Rich TUI + Flask web dashboard</span></li>
-          <li><span class="check">✓</span> <span data-en="Telegram instant alerts" data-ar="تنبيهات تيليغرام الفورية">Telegram instant alerts</span></li>
-          <li><span class="check">✓</span> <span data-en="PDF session reports (reportlab)" data-ar="تقارير PDF للجلسة (reportlab)">PDF session reports (reportlab)</span></li>
-          <li><span class="check">✓</span> <span data-en="Arabic &amp; English language support" data-ar="دعم اللغة العربية والإنجليزية">Arabic &amp; English language support</span></li>
-          <li><span class="check">✓</span> <span data-en="Machine-bound license key" data-ar="مفتاح ترخيص مرتبط بالجهاز">Machine-bound license key</span></li>
-          <li><span class="check">✓</span> <span data-en="Lifetime updates" data-ar="تحديثات مدى الحياة">Lifetime updates</span></li>
-          <li><span class="check">✓</span> <span data-en="Email support" data-ar="دعم عبر البريد الإلكتروني">Email support</span></li>
-        </ul>
+      </div>
 
-        <a href="https://buy.stripe.com/test_4gMcN72YtcRdfPY4ld3cc00"
-           class="btn-buy"
-           target="_blank" rel="noopener"
-           data-en="🛒 Buy Now — $199" data-ar="🛒 اشتر الآن — 199$">
-          🛒 Buy Now — $199
-        </a>
-
-        <div class="price-note"
-             data-en="Secure card payment via Stripe. License delivered within 24h."
-             data-ar="دفع آمن بالبطاقة عبر Stripe. يُسلَّم الترخيص خلال 24 ساعة.">
-          Secure card payment via Stripe. License delivered within 24h.
+      <!-- Steps -->
+      <div class="pay-steps">
+        <div class="pay-step">
+          <div class="pay-step-num">1</div>
+          <div>
+            <div class="pay-step-title" data-en="Choose your product and click Buy Now" data-ar="اختر منتجك وانقر على اشتر الآن">Choose your product and click Buy Now</div>
+            <div class="pay-step-desc" data-en="A modal will show the price and both payment options." data-ar="ستظهر نافذة تعرض السعر وخياري الدفع.">A modal will show the price and both payment options.</div>
+          </div>
         </div>
-
-        <div class="price-guarantee">
-          <span>🛡️</span>
-          <span data-en="7-day money-back guarantee — no questions asked" data-ar="ضمان استرداد الأموال خلال 7 أيام — بدون أسئلة">7-day money-back guarantee — no questions asked</span>
+        <div class="pay-step">
+          <div class="pay-step-num">2</div>
+          <div>
+            <div class="pay-step-title" data-en="Send the exact amount" data-ar="أرسل المبلغ الدقيق">Send the exact amount</div>
+            <div class="pay-step-desc" data-en="Use USDT TRC20 wallet above, or contact us to arrange a Mastercard transfer." data-ar="استخدم محفظة USDT TRC20 أعلاه، أو تواصل معنا لترتيب تحويل الماستركارد.">Use USDT TRC20 wallet above, or contact us to arrange a Mastercard transfer.</div>
+          </div>
+        </div>
+        <div class="pay-step">
+          <div class="pay-step-num">3</div>
+          <div>
+            <div class="pay-step-title" data-en="Email your transaction proof" data-ar="أرسل إثبات المعاملة بالبريد الإلكتروني">Email your transaction proof</div>
+            <div class="pay-step-desc">
+              <span data-en="Send screenshot or TX hash to " data-ar="أرسل لقطة شاشة أو رمز المعاملة إلى ">Send screenshot or TX hash to </span>
+              <a class="email-link" href="mailto:ahssanali84.syber@gmail.com">ahssanali84.syber@gmail.com</a>
+              <span data-en=" — include the product name in subject." data-ar=" — أدرج اسم المنتج في موضوع الرسالة."> — include the product name in subject.</span>
+            </div>
+          </div>
+        </div>
+        <div class="pay-step">
+          <div class="pay-step-num">4</div>
+          <div>
+            <div class="pay-step-title" data-en="Receive your license within 24h" data-ar="استلم ترخيصك خلال 24 ساعة">Receive your license within 24h</div>
+            <div class="pay-step-desc" data-en="License key and download link delivered to your email." data-ar="مفتاح الترخيص ورابط التنزيل يُسلَّمان إلى بريدك الإلكتروني.">License key and download link delivered to your email.</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</section>
+</div>
 
-<hr class="divider">
+<!-- ══ TESTIMONIALS ══════════════════════════════════════════ -->
+<div class="section" id="testimonials">
+  <div class="reveal" style="text-align:center; margin-bottom:52px;">
+    <div class="section-label mono" data-en="// TESTIMONIALS" data-ar="// آراء العملاء">// TESTIMONIALS</div>
+    <h2 class="section-title">
+      <span data-en="Trusted by " data-ar="موثوق به من قِبَل ">Trusted by </span>
+      <span class="accent" data-en="Security Professionals" data-ar="محترفي الأمن">Security Professionals</span>
+    </h2>
+  </div>
 
-<!-- ── FAQ ───────────────────────────────────────────────────── -->
-<section>
-  <div class="container">
-    <div class="section-label" data-en="FAQ" data-ar="الأسئلة الشائعة">FAQ</div>
-    <h2 class="section-title" data-en="Common Questions" data-ar="الأسئلة الشائعة">Common Questions</h2>
-
-    <div class="faq-list">
-
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span data-en="What hardware do I need?" data-ar="ما هي الأجهزة التي أحتاجها؟">What hardware do I need?</span>
-          <span class="faq-arrow">▶</span>
-        </div>
-        <div class="faq-a" data-en="You need a Linux machine running BlackArch (or Arch-based distro), and a WiFi adapter that supports monitor mode — such as the Alfa AWUS036ACH. A secondary interface for internet connectivity is recommended." data-ar="تحتاج إلى جهاز Linux يعمل بـ BlackArch (أو توزيعة مبنية على Arch)، ومحول WiFi يدعم وضع المراقبة — مثل Alfa AWUS036ACH. يُوصى بواجهة ثانية للاتصال بالإنترنت.">
-          You need a Linux machine running BlackArch (or Arch-based distro), and a WiFi adapter that supports monitor mode — such as the Alfa AWUS036ACH. A secondary interface for internet connectivity is recommended.
+  <div class="testi-grid">
+    <div class="testi-card reveal reveal-delay-1">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text" data-en="&ldquo;OPTISEC WiFi Monitor caught a rogue AP on our corporate network within minutes of deployment. Exactly what we needed.&rdquo;"
+         data-ar="&ldquo;اكتشف OPTISEC WiFi Monitor نقطة وصول مارقة على شبكتنا المؤسسية في غضون دقائق من النشر. هذا بالضبط ما كنا نحتاجه.&rdquo;">
+        &ldquo;OPTISEC WiFi Monitor caught a rogue AP on our corporate network within minutes of deployment. Exactly what we needed.&rdquo;
+      </p>
+      <div class="testi-author">
+        <div class="testi-avatar">🧑‍💻</div>
+        <div>
+          <div class="testi-name" data-en="Khalid Al-Rashidi" data-ar="خالد الراشدي">Khalid Al-Rashidi</div>
+          <div class="testi-role" data-en="Senior Network Engineer · Riyadh" data-ar="مهندس شبكات أول · الرياض">Senior Network Engineer · Riyadh</div>
         </div>
       </div>
-
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span data-en="Is a Groq API key included?" data-ar="هل مفتاح Groq API مضمّن؟">Is a Groq API key included?</span>
-          <span class="faq-arrow">▶</span>
-        </div>
-        <div class="faq-a" data-en="No — Groq offers a generous free tier. Sign up at groq.com, generate a free API key, and paste it into the config wizard (python main.py config). The tool works fully offline without one." data-ar="لا — تقدم Groq طبقة مجانية سخية. سجّل على groq.com، ولّد مفتاح API مجانياً، والصقه في معالج الإعداد (python main.py config). الأداة تعمل بشكل كامل بدون اتصال بالإنترنت أيضاً.">
-          No — Groq offers a generous free tier. Sign up at groq.com, generate a free API key, and paste it into the config wizard (python main.py config). The tool works fully offline without one.
-        </div>
-      </div>
-
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span data-en="Can I use this for penetration testing?" data-ar="هل يمكنني استخدامه في اختبار الاختراق؟">Can I use this for penetration testing?</span>
-          <span class="faq-arrow">▶</span>
-        </div>
-        <div class="faq-a" data-en="Optisec is a passive defense tool — it monitors and alerts, it does not attack. It is suitable for authorized network security audits, home lab monitoring, and corporate WiFi defense. Always ensure you have authorization to monitor any network." data-ar="Optisec أداة دفاعية سلبية — تراقب وتُنبّه، لا تهاجم. مناسبة لتدقيق أمان الشبكات المصرح به، ومراقبة المختبرات المنزلية، والدفاع عن WiFi المؤسسي. تأكد دائماً من الحصول على إذن لمراقبة أي شبكة.">
-          Optisec is a passive defense tool — it monitors and alerts, it does not attack. It is suitable for authorized network security audits, home lab monitoring, and corporate WiFi defense. Always ensure you have authorization to monitor any network.
+    </div>
+    <div class="testi-card reveal reveal-delay-2">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text" data-en="&ldquo;The SOC Platform drastically cut our MTTD. The threat intelligence correlation alone is worth the price of entry.&rdquo;"
+         data-ar="&ldquo;خفّضت منصة SOC بشكل كبير وقت اكتشافنا للتهديدات. ربط معلومات التهديدات وحده يستحق ثمن الاشتراك.&rdquo;">
+        &ldquo;The SOC Platform drastically cut our MTTD. The threat intelligence correlation alone is worth the price of entry.&rdquo;
+      </p>
+      <div class="testi-author">
+        <div class="testi-avatar">👩‍💼</div>
+        <div>
+          <div class="testi-name" data-en="Sara Ahmed" data-ar="سارة أحمد">Sara Ahmed</div>
+          <div class="testi-role" data-en="SOC Analyst Lead · Dubai" data-ar="قائدة فريق تحليل SOC · دبي">SOC Analyst Lead · Dubai</div>
         </div>
       </div>
-
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span data-en="What is the license bound to?" data-ar="بماذا يرتبط الترخيص؟">What is the license bound to?</span>
-          <span class="faq-arrow">▶</span>
-        </div>
-        <div class="faq-a" data-en="The license key is generated from your machine ID and your name on first run — it is stored in ~/.optisec/license.key. One license = one machine. Contact support to transfer to a new device." data-ar="يُولَّد مفتاح الترخيص من معرّف جهازك واسمك عند أول تشغيل — يُخزَّن في ~/.optisec/license.key. ترخيص واحد = جهاز واحد. تواصل مع الدعم للنقل إلى جهاز جديد.">
-          The license key is generated from your machine ID and your name on first run — it is stored in ~/.optisec/license.key. One license = one machine. Contact support to transfer to a new device.
-        </div>
-      </div>
-
-      <div class="faq-item" onclick="toggleFaq(this)">
-        <div class="faq-q">
-          <span data-en="Do I get future updates?" data-ar="هل سأحصل على التحديثات المستقبلية؟">Do I get future updates?</span>
-          <span class="faq-arrow">▶</span>
-        </div>
-        <div class="faq-a" data-en="Yes. One-time payment includes all future v1.x updates. Major version upgrades (v2.0+) may be offered at a discounted upgrade price for existing customers." data-ar="نعم. الدفعة الواحدة تشمل جميع تحديثات v1.x المستقبلية. الترقيات إلى إصدارات رئيسية (v2.0+) قد تُقدَّم بسعر مخفض للعملاء الحاليين.">
-          Yes. One-time payment includes all future v1.x updates. Major version upgrades (v2.0+) may be offered at a discounted upgrade price for existing customers.
+    </div>
+    <div class="testi-card reveal reveal-delay-3">
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text" data-en="&ldquo;Clean UI, solid detection engine, and lightning-fast support. I recommended OPTISEC to our entire regional security team.&rdquo;"
+         data-ar="&ldquo;واجهة نظيفة ومحرك كشف قوي ودعم سريع كالبرق. أوصيت بـ OPTISEC لفريق الأمن الإقليمي بأكمله.&rdquo;">
+        &ldquo;Clean UI, solid detection engine, and lightning-fast support. I recommended OPTISEC to our entire regional security team.&rdquo;
+      </p>
+      <div class="testi-author">
+        <div class="testi-avatar">🧑‍🔬</div>
+        <div>
+          <div class="testi-name" data-en="Omar Farouk" data-ar="عمر فاروق">Omar Farouk</div>
+          <div class="testi-role" data-en="Cybersecurity Consultant · Cairo" data-ar="استشاري أمن سيبراني · القاهرة">Cybersecurity Consultant · Cairo</div>
         </div>
       </div>
-
     </div>
   </div>
-</section>
+</div>
 
-<!-- ── Footer ────────────────────────────────────────────────── -->
+<!-- ══ LICENSE VERIFIER ══════════════════════════════════════════ -->
+<div style="background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:100px 24px;" id="verify">
+  <div class="verifier-box reveal">
+    <div class="verifier-icon">🔑</div>
+    <div class="section-label mono" style="text-align:center;" data-en="// LICENSE VERIFIER" data-ar="// التحقق من الترخيص">// LICENSE VERIFIER</div>
+    <h2 class="section-title" style="margin-top:10px;" data-en="Verify Your License Key" data-ar="تحقق من مفتاح الترخيص">Verify Your License Key</h2>
+    <p style="font-size:0.9rem; color:var(--muted); margin-top:8px;"
+       data-en="Enter your OPTISEC license key to confirm it's valid."
+       data-ar="أدخل مفتاح ترخيص OPTISEC للتأكد من صحته.">
+      Enter your OPTISEC license key to confirm it's valid.
+    </p>
+
+    <div class="verifier-input-wrap">
+      <input
+        class="verifier-input mono"
+        id="licenseInput"
+        type="text"
+        placeholder="OPS-XXXX-XXXX-XXXX-XXXX"
+        maxlength="24"
+        oninput="onLicenseInput(this)"
+      />
+    </div>
+
+    <div class="verifier-msg" id="licenseMsg"></div>
+
+    <button class="btn-verify" onclick="verifyLicense()" data-en="Verify License" data-ar="تحقق من الترخيص">Verify License</button>
+
+    <p class="verifier-hint" data-en="Format: OPS-XXXX-XXXX-XXXX-XXXX" data-ar="الصيغة: OPS-XXXX-XXXX-XXXX-XXXX">Format: OPS-XXXX-XXXX-XXXX-XXXX</p>
+  </div>
+</div>
+
+<!-- ══ FOOTER ══════════════════════════════════════════ -->
 <footer>
-  <div class="footer-logo">OPTISEC://WIFI</div>
-  <div class="footer-tagline"
-       data-en="Professional Network Defense — Authorized Use Only"
-       data-ar="دفاع شبكي احترافي — للاستخدام المرخّص فقط">
-    Professional Network Defense — Authorized Use Only
-  </div>
+  <div class="footer-logo">OPTI<span>SEC</span></div>
   <div class="footer-links">
-    <a href="#features"    data-en="Features"    data-ar="المزايا">Features</a>
-    <a href="#screenshots" data-en="Screenshots" data-ar="لقطات الشاشة">Screenshots</a>
-    <a href="#pricing"     data-en="Pricing"     data-ar="الأسعار">Pricing</a>
-    <a href="mailto:ahssanali84.syber@gmail.com" data-en="Support" data-ar="الدعم">Support</a>
+    <a href="#products" data-en="Products"    data-ar="المنتجات">Products</a>
+    <a href="#features" data-en="Features"    data-ar="المميزات">Features</a>
+    <a href="#payment"  data-en="Payment"     data-ar="الدفع">Payment</a>
+    <a href="#verify"   data-en="Verify"      data-ar="التحقق">Verify</a>
+    <a href="https://github.com/ahssanali84syber-boop" target="_blank" rel="noopener">GitHub</a>
+    <a href="mailto:ahssanali84.syber@gmail.com" data-en="Contact" data-ar="تواصل معنا">Contact</a>
   </div>
-  <div class="footer-copy"
-       data-en="© 2026 Optisec WiFi Monitor. For authorized defense use only. Unauthorized network monitoring may violate local laws."
-       data-ar="© 2026 Optisec WiFi Monitor. للاستخدام الدفاعي المرخص فقط. مراقبة الشبكات غير المصرح بها قد تنتهك القوانين المحلية.">
-    © 2026 Optisec WiFi Monitor. For authorized defense use only. Unauthorized network monitoring may violate local laws.
-  </div>
+  <p class="footer-copy" data-en="© 2026 OPTISEC. All rights reserved. Professional Cybersecurity Tools."
+     data-ar="© 2026 أوبتيسيك. جميع الحقوق محفوظة. أدوات الأمن السيبراني الاحترافية.">
+    © 2026 OPTISEC. All rights reserved. Professional Cybersecurity Tools.
+  </p>
 </footer>
 
-<!-- ── JS ────────────────────────────────────────────────────── -->
+<!-- ══ MODAL ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+    <div class="modal-product" id="mProduct">OPTISEC WiFi Monitor</div>
+    <div class="modal-price mono" id="mPrice">$299</div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-usdt" onclick="switchTab('usdt')" data-en="💎 USDT Crypto" data-ar="💎 USDT كريبتو">💎 USDT Crypto</button>
+      <button class="modal-tab"        id="tab-card" onclick="switchTab('card')" data-en="💳 Card Transfer" data-ar="💳 تحويل بطاقة">💳 Card Transfer</button>
+    </div>
+
+    <!-- USDT pane -->
+    <div class="modal-pane active" id="pane-usdt">
+      <p class="modal-note" data-en="Send exactly the amount above to this USDT TRC20 address:" data-ar="أرسل المبلغ المحدد أعلاه بالضبط إلى عنوان USDT TRC20 هذا:">
+        Send exactly the amount above to this USDT TRC20 address:
+      </p>
+      <div class="modal-addr mono">TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho</div>
+      <p class="modal-note" style="margin-top:12px;">
+        <span data-en="After sending, email your TX hash to " data-ar="بعد الإرسال، أرسل رمز المعاملة إلى ">After sending, email your TX hash to </span>
+        <a class="email-link" id="mEmailUsdt" href="#">ahssanali84.syber@gmail.com</a>
+      </p>
+      <a class="modal-email-btn" id="mEmailBtnUsdt" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+    </div>
+
+    <!-- Card pane -->
+    <div class="modal-pane" id="pane-card">
+      <p class="modal-note" data-en="Transfer the exact amount to this Mastercard:" data-ar="حوّل المبلغ الدقيق إلى بطاقة الماستركارد هذه:">
+        Transfer the exact amount to this Mastercard:
+      </p>
+      <div class="modal-addr mono">Mastercard ending in 2492</div>
+      <div class="modal-holder-line" data-en="Cardholder: IHSAN ALI ATIYYA" data-ar="حامل البطاقة: إحسان علي عطية">Cardholder: IHSAN ALI ATIYYA</div>
+      <p class="modal-note">
+        <span data-en="After transfer, email proof to " data-ar="بعد التحويل، أرسل الإثبات إلى ">After transfer, email proof to </span>
+        <a class="email-link" id="mEmailCard" href="#">ahssanali84.syber@gmail.com</a>
+      </p>
+      <a class="modal-email-btn" id="mEmailBtnCard" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+    </div>
+
+    <p class="modal-footer-note" data-en="Include product name in subject. License delivered within 24h."
+       data-ar="أدرج اسم المنتج في الموضوع. يُسلَّم الترخيص خلال 24 ساعة.">
+      Include product name in subject. License delivered within 24h.
+    </p>
+  </div>
+</div>
+
+<!-- ══ SCRIPTS ══════════════════════════════════════════ -->
 <script>
-  // ── Language toggle ────────────────────────────────────────
-  function setLang(lang) {
-    const isAr = lang === 'ar';
-    document.documentElement.lang = lang;
-    document.documentElement.dir  = isAr ? 'rtl' : 'ltr';
-    document.body.classList.toggle('ar', isAr);
+/* ── i18n ─────────────────────────────────────── */
+let lang = 'en';
 
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.textContent.toLowerCase() === lang);
-    });
-
-    document.querySelectorAll('[data-en]').forEach(el => {
-      const text = el.getAttribute(isAr ? 'data-ar' : 'data-en');
-      if (text) el.innerHTML = text;
-    });
-  }
-
-  // ── FAQ accordion ──────────────────────────────────────────
-  function toggleFaq(el) {
-    const wasOpen = el.classList.contains('open');
-    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-    if (!wasOpen) el.classList.add('open');
-  }
-
-  // ── Smooth nav shadow on scroll ────────────────────────────
-  window.addEventListener('scroll', () => {
-    document.querySelector('nav').style.boxShadow =
-      window.scrollY > 10 ? '0 4px 30px rgba(0,0,0,0.5)' : 'none';
+function toggleLang() {
+  lang = lang === 'en' ? 'ar' : 'en';
+  document.documentElement.setAttribute('lang', lang);
+  const rtl = lang === 'ar';
+  document.documentElement.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+  document.body.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+  document.getElementById('langBtn').textContent = rtl ? 'English' : 'العربية';
+  document.querySelectorAll('[data-en]').forEach(el => {
+    el.textContent = el.getAttribute('data-' + lang);
   });
+}
+
+/* ── Copy address ─────────────────────────────── */
+function copyAddr(id, btn) {
+  const txt = document.getElementById(id).textContent.trim();
+  navigator.clipboard.writeText(txt).then(() => {
+    const saved = btn.textContent;
+    btn.textContent = lang === 'ar' ? 'تم!' : 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = lang === 'ar' ? 'نسخ' : 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+/* ── Modal ────────────────────────────────────── */
+const PRODUCTS = {
+  wifi: { en: 'OPTISEC WiFi Monitor', ar: 'مراقب WiFi أوبتيسيك', price: '$299' },
+  soc:  { en: 'OPTISEC SOC Platform', ar: 'منصة SOC أوبتيسيك',   price: '$99'  },
+};
+const SUPPORT_EMAIL = 'ahssanali84.syber@gmail.com';
+
+let activeProduct = null;
+
+function openModal(key) {
+  activeProduct = key;
+  const p = PRODUCTS[key];
+  document.getElementById('mProduct').textContent = p[lang];
+  document.getElementById('mPrice').textContent   = p.price;
+  updateEmailLinks();
+  switchTab('usdt');
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function updateEmailLinks() {
+  if (!activeProduct) return;
+  const p = PRODUCTS[activeProduct];
+  const name  = p[lang];
+  const price = p.price;
+  const sub   = encodeURIComponent('Purchase: ' + name + ' — ' + price);
+  const body  = encodeURIComponent('Hi OPTISEC,\n\nI have completed payment for ' + name + ' (' + price + ').\n\nTransaction details:\n[Paste TX hash or screenshot reference here]\n\nThank you.');
+  const href  = 'mailto:' + SUPPORT_EMAIL + '?subject=' + sub + '&body=' + body;
+  document.getElementById('mEmailUsdt').href    = href;
+  document.getElementById('mEmailBtnUsdt').href = href;
+  document.getElementById('mEmailCard').href    = href;
+  document.getElementById('mEmailBtnCard').href = href;
+}
+
+function switchTab(tab) {
+  ['usdt','card'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('pane-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function onOverlayClick(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+/* ── License verifier ─────────────────────────── */
+const LICENSE_RE = /^OPS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+
+function onLicenseInput(input) {
+  input.value = input.value.toUpperCase();
+  input.classList.remove('valid', 'invalid');
+  document.getElementById('licenseMsg').textContent = '';
+  document.getElementById('licenseMsg').className   = 'verifier-msg';
+}
+
+function verifyLicense() {
+  const input = document.getElementById('licenseInput');
+  const msg   = document.getElementById('licenseMsg');
+  const key   = input.value.trim();
+
+  if (LICENSE_RE.test(key)) {
+    input.classList.add('valid');
+    msg.className   = 'verifier-msg ok';
+    msg.textContent = lang === 'ar'
+      ? '✓ مفتاح ترخيص صحيح'
+      : '✓ Valid license key format';
+  } else {
+    input.classList.add('invalid');
+    msg.className   = 'verifier-msg err';
+    msg.textContent = lang === 'ar'
+      ? '✗ صيغة غير صحيحة — يجب أن تكون: OPS-XXXX-XXXX-XXXX-XXXX'
+      : '✗ Invalid format — expected: OPS-XXXX-XXXX-XXXX-XXXX';
+  }
+}
+
+/* allow Enter key */
+document.getElementById('licenseInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') verifyLicense();
+});
+
+/* ── Scroll reveal ────────────────────────────── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 </body>
 </html>
