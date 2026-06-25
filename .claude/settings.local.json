@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile core/oui_lookup.py)",
+      "Bash(python -m py_compile modules/device_monitor.py)",
+      "Bash(python -m py_compile modules/encryption_auditor.py)",
+      "Bash(python -m py_compile tui/dashboard.py)",
+      "Skill(run)",
+      "Bash(tmux new-session *)",
+      "Bash(tmux kill-session *)",
+      "Bash(tmux send-keys *)",
+      "Bash(tmux capture-pane *)",
+      "Bash(sudo python *)",
+      "Bash(xargs ls -la)",
+      "Bash(python *)",
+      "Read(//home/ehsan/.local/lib/python3.14/site-packages/manuf/**)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(python3 -c ' *)",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(gh auth *)",
+      "Bash(pacman -S --noconfirm github-cli)",
+      "Bash(sudo pacman -S --noconfirm github-cli)"
+    ]
+  }
+}
