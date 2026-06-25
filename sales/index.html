@@ -991,6 +991,93 @@
       text-align: center;
     }
 
+    /* ── NOWPayments result UI ── */
+    .pay-spinner {
+      width: 42px; height: 42px;
+      border: 3px solid var(--green-dark);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .pay-result-qr {
+      display: block;
+      width: 160px; height: 160px;
+      border-radius: 10px;
+      border: 2px solid var(--green);
+      margin: 0 auto 18px;
+      image-rendering: pixelated;
+    }
+
+    .pay-amount-big {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.1;
+    }
+
+    .pay-result-block {
+      background: var(--green-dark);
+      border: 1px solid rgba(0,255,136,0.2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .pay-result-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .pay-result-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--green);
+      word-break: break-all;
+    }
+
+    .pay-status-box {
+      background: rgba(0,255,136,0.05);
+      border: 1px solid rgba(0,255,136,0.18);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .pay-status-label {
+      color: var(--green);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .pay-copy-addr {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px;
+      background: var(--bg3);
+      border: 1px solid rgba(0,255,136,0.25);
+      border-radius: 7px;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .pay-copy-addr:hover { background: var(--green-dark); border-color: var(--green); }
+
     /* ══════════════════════════════════════════
        RESPONSIVE
     ══════════════════════════════════════════ */
@@ -1464,15 +1551,52 @@
 
     <!-- USDT pane -->
     <div class="modal-pane active" id="pane-usdt">
-      <p class="modal-note" data-en="Send exactly the amount above to this USDT TRC20 address:" data-ar="أرسل المبلغ المحدد أعلاه بالضبط إلى عنوان USDT TRC20 هذا:">
-        Send exactly the amount above to this USDT TRC20 address:
-      </p>
-      <div class="modal-addr mono">TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho</div>
-      <p class="modal-note" style="margin-top:12px;">
-        <span data-en="After sending, email your TX hash to " data-ar="بعد الإرسال، أرسل رمز المعاملة إلى ">After sending, email your TX hash to </span>
-        <a class="email-link" id="mEmailUsdt" href="#">ahssanali84.syber@gmail.com</a>
-      </p>
-      <a class="modal-email-btn" id="mEmailBtnUsdt" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+
+      <!-- Loading -->
+      <div id="pay-loading" style="text-align:center; padding:24px 0;">
+        <div class="pay-spinner"></div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:14px;" data-en="Generating secure payment address…" data-ar="جارٍ إنشاء عنوان الدفع الآمن…">Generating secure payment address…</p>
+      </div>
+
+      <!-- API success result -->
+      <div id="pay-result" style="display:none;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <img id="pay-qr" class="pay-result-qr" src="" alt="Payment QR Code">
+        </div>
+        <div style="text-align:center; margin-bottom:16px;">
+          <div class="pay-result-label" data-en="SEND EXACTLY" data-ar="أرسل بالضبط">SEND EXACTLY</div>
+          <div class="pay-amount-big"><span id="pay-amount">…</span> USDT</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:3px;">TRC20 network</div>
+        </div>
+        <div class="pay-result-block">
+          <div class="pay-result-label" data-en="WALLET ADDRESS" data-ar="عنوان المحفظة">WALLET ADDRESS</div>
+          <div class="pay-result-value" id="pay-address">…</div>
+          <button class="pay-copy-addr" id="pay-copy-btn" onclick="copyPayAddr()">Copy Address</button>
+        </div>
+        <div class="pay-result-block" style="margin-bottom:14px;">
+          <div class="pay-result-label" data-en="PAYMENT ID (for reference)" data-ar="معرّف الدفع (للمرجعية)">PAYMENT ID</div>
+          <div class="pay-result-value" id="pay-id">…</div>
+        </div>
+        <div class="pay-status-box">
+          <span class="pay-status-label">⏳ Waiting for payment…</span>
+          <span id="pay-instructions"></span>
+        </div>
+      </div>
+
+      <!-- Fallback (API failed) -->
+      <div id="pay-fallback" style="display:none;">
+        <div style="background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.2);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--muted);margin-bottom:16px;">
+          ⚠ Auto-payment unavailable — use manual address below
+        </div>
+        <p class="modal-note" data-en="Send exactly the amount above to this USDT TRC20 address:" data-ar="أرسل المبلغ المحدد أعلاه بالضبط إلى عنوان USDT TRC20 هذا:">Send exactly the amount above to this USDT TRC20 address:</p>
+        <div class="modal-addr mono">TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho</div>
+        <p class="modal-note" style="margin-top:12px;">
+          <span data-en="After sending, email your TX hash to " data-ar="بعد الإرسال، أرسل رمز المعاملة إلى ">After sending, email your TX hash to </span>
+          <a class="email-link" id="mEmailUsdt" href="#">ahssanali84.syber@gmail.com</a>
+        </p>
+        <a class="modal-email-btn" id="mEmailBtnUsdt" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+      </div>
+
     </div>
 
     <!-- Card pane -->
@@ -1529,12 +1653,24 @@ function copyAddr(id, btn) {
 
 /* ── Modal ────────────────────────────────────── */
 const PRODUCTS = {
-  wifi: { en: 'OPTISEC WiFi Monitor', ar: 'مراقب WiFi أوبتيسيك', price: '$299' },
-  soc:  { en: 'OPTISEC SOC Platform', ar: 'منصة SOC أوبتيسيك',   price: '$99'  },
+  wifi: {
+    en: 'OPTISEC WiFi Monitor', ar: 'مراقب WiFi أوبتيسيك',
+    price: '$299', amount: 299,
+    order_prefix: 'WIFI',
+    description: 'OPTISEC WiFi Monitor - Lifetime License'
+  },
+  soc: {
+    en: 'OPTISEC SOC Platform', ar: 'منصة SOC أوبتيسيك',
+    price: '$99', amount: 99,
+    order_prefix: 'SOC',
+    description: 'OPTISEC SOC Platform - 1 Year License'
+  },
 };
 const SUPPORT_EMAIL = 'ahssanali84.syber@gmail.com';
+const FALLBACK_USDT = 'TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho';
 
 let activeProduct = null;
+let payAddress = '';
 
 function openModal(key) {
   activeProduct = key;
@@ -1545,18 +1681,78 @@ function openModal(key) {
   switchTab('usdt');
   document.getElementById('modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  fetchNowPayment(key);
+}
+
+async function fetchNowPayment(key) {
+  const p = PRODUCTS[key];
+  showPayState('loading');
+  try {
+    const res = await fetch('https://api.nowpayments.io/v1/payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'D1GWVE7-C6SMEYX-N9S3AVR-HN1ZFDR'
+      },
+      body: JSON.stringify({
+        price_amount: p.amount,
+        price_currency: 'usd',
+        pay_currency: 'usdttrc20',
+        order_id: p.order_prefix + '-' + Date.now(),
+        order_description: p.description
+      })
+    });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const data = await res.json();
+    payAddress = data.pay_address || '';
+    document.getElementById('pay-amount').textContent  = data.pay_amount;
+    document.getElementById('pay-address').textContent = data.pay_address;
+    document.getElementById('pay-id').textContent      = data.payment_id;
+    document.getElementById('pay-qr').src =
+      'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' +
+      encodeURIComponent(data.pay_address);
+    document.getElementById('pay-instructions').textContent =
+      'Send exactly ' + data.pay_amount +
+      ' USDT TRC20 to the address above. License delivered within 24h after confirmation.';
+    showPayState('result');
+  } catch (e) {
+    console.warn('NOWPayments error:', e);
+    showPayFallback();
+  }
+}
+
+function showPayState(state) {
+  document.getElementById('pay-loading').style.display  = state === 'loading'  ? 'block' : 'none';
+  document.getElementById('pay-result').style.display   = state === 'result'   ? 'block' : 'none';
+  document.getElementById('pay-fallback').style.display = state === 'fallback' ? 'block' : 'none';
+}
+
+function showPayFallback() {
+  showPayState('fallback');
+  updateEmailLinks();
+}
+
+function copyPayAddr() {
+  if (!payAddress) return;
+  navigator.clipboard.writeText(payAddress).then(() => {
+    const btn = document.getElementById('pay-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Address'; }, 2000);
+  });
 }
 
 function updateEmailLinks() {
   if (!activeProduct) return;
-  const p = PRODUCTS[activeProduct];
-  const name  = p[lang];
+  const p    = PRODUCTS[activeProduct];
+  const name = p[lang];
   const price = p.price;
-  const sub   = encodeURIComponent('Purchase: ' + name + ' — ' + price);
-  const body  = encodeURIComponent('Hi OPTISEC,\n\nI have completed payment for ' + name + ' (' + price + ').\n\nTransaction details:\n[Paste TX hash or screenshot reference here]\n\nThank you.');
-  const href  = 'mailto:' + SUPPORT_EMAIL + '?subject=' + sub + '&body=' + body;
-  document.getElementById('mEmailUsdt').href    = href;
-  document.getElementById('mEmailBtnUsdt').href = href;
+  const sub  = encodeURIComponent('Purchase: ' + name + ' — ' + price);
+  const body = encodeURIComponent('Hi OPTISEC,\n\nI have completed payment for ' + name + ' (' + price + ').\n\nTransaction details:\n[Paste TX hash or screenshot reference here]\n\nThank you.');
+  const href = 'mailto:' + SUPPORT_EMAIL + '?subject=' + sub + '&body=' + body;
+  const eu = document.getElementById('mEmailUsdt');
+  const eub = document.getElementById('mEmailBtnUsdt');
+  if (eu)  eu.href  = href;
+  if (eub) eub.href = href;
   document.getElementById('mEmailCard').href    = href;
   document.getElementById('mEmailBtnCard').href = href;
 }
