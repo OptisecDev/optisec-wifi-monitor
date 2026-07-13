@@ -88,9 +88,24 @@ class Database:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS bssid_baseline (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bssid TEXT UNIQUE NOT NULL,
+                ssid TEXT,
+                vendor TEXT,
+                channel INTEGER,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                seen_count INTEGER DEFAULT 1,
+                avg_signal REAL,
+                is_trusted INTEGER DEFAULT 0
+            );
+
             CREATE INDEX IF NOT EXISTS idx_devices_mac ON devices(mac);
             CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp);
             CREATE INDEX IF NOT EXISTS idx_attacks_timestamp ON attacks(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_bssid_baseline_bssid ON bssid_baseline(bssid);
+            CREATE INDEX IF NOT EXISTS idx_bssid_baseline_ssid ON bssid_baseline(ssid);
         """)
         conn.commit()
         conn.close()
@@ -182,6 +197,39 @@ class Database:
     def get_attack_count(self):
         row = self.fetchone("SELECT COUNT(*) as cnt FROM attacks")
         return row['cnt'] if row else 0
+
+    # --- BSSID Baseline (persistent historical trust, used by RogueAPDetector) ---
+    def get_bssid_baseline(self, bssid: str):
+        return self.fetchone("SELECT * FROM bssid_baseline WHERE bssid=?", (bssid,))
+
+    def get_baseline_for_ssid(self, ssid: str):
+        return self.fetchall("SELECT * FROM bssid_baseline WHERE ssid=?", (ssid,))
+
+    def upsert_bssid_baseline(self, bssid: str, ssid: str = None, vendor: str = None,
+                              channel: int = None, signal: int = None):
+        existing = self.get_bssid_baseline(bssid)
+        if existing:
+            seen_count = existing['seen_count'] + 1
+            if signal is not None and existing['avg_signal'] is not None:
+                avg_signal = existing['avg_signal'] + (signal - existing['avg_signal']) / seen_count
+            elif signal is not None:
+                avg_signal = float(signal)
+            else:
+                avg_signal = existing['avg_signal']
+            self.execute(
+                "UPDATE bssid_baseline SET ssid=?, vendor=?, channel=?, last_seen=?, "
+                "seen_count=?, avg_signal=? WHERE bssid=?",
+                (ssid or existing['ssid'], vendor or existing['vendor'],
+                 channel if channel is not None else existing['channel'],
+                 datetime.now(), seen_count, avg_signal, bssid)
+            )
+        else:
+            self.execute(
+                "INSERT INTO bssid_baseline (bssid, ssid, vendor, channel, seen_count, avg_signal) "
+                "VALUES (?,?,?,?,1,?)",
+                (bssid, ssid, vendor, channel, float(signal) if signal is not None else None)
+            )
+        return self.get_bssid_baseline(bssid)
 
     # --- Encryption Audits ---
     def upsert_audit(self, bssid: str, ssid: str, encryption_type: str,
