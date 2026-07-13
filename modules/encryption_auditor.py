@@ -95,6 +95,11 @@ class EncryptionAuditor:
         self.monitor_iface = monitor_iface
         self._running = False
         self._seen: set = set()
+        # _seen is checked-and-added from both the beacon-sniff thread
+        # (_beacon_handler) and the main iwlist-scan loop (_process_iwlist_entry) -
+        # without this lock the same BSSID can pass the "not seen yet" check on
+        # both threads before either adds it, producing duplicate audit rows/alerts.
+        self._seen_lock = threading.Lock()
 
     def start(self):
         self._running = True
@@ -111,29 +116,45 @@ class EncryptionAuditor:
         self._running = False
 
     def _sniff_beacons(self):
-        try:
-            sniff(
-                iface=self.monitor_iface,
-                prn=self._beacon_handler,
-                store=False,
-                lfilter=lambda p: p.haslayer(Dot11Beacon),
-                stop_filter=lambda _: not self._running,
-            )
-        except Exception as e:
-            self.alert_mgr.low("SYSTEM", f"Encryption auditor sniff error: {e}")
+        # Retry with backoff instead of giving up permanently on the first
+        # sniff() failure - the monitor interface can disappear (unplugged
+        # adapter, rfkill, airmon-ng restart) and come back mid-run.
+        retry_delay = 5
+        while self._running:
+            try:
+                sniff(
+                    iface=self.monitor_iface,
+                    prn=self._beacon_handler,
+                    store=False,
+                    lfilter=lambda p: p.haslayer(Dot11Beacon),
+                    stop_filter=lambda _: not self._running,
+                )
+                retry_delay = 5
+            except Exception as e:
+                self.alert_mgr.low(
+                    "SYSTEM",
+                    f"Encryption auditor sniff error: {e} - retrying in {retry_delay}s"
+                )
+            if not self._running:
+                return
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
     def _beacon_handler(self, pkt):
         try:
             bssid = pkt[Dot11].addr3
-            if not bssid or bssid in self._seen:
+            if not bssid:
                 return
-            self._seen.add(bssid)
+            with self._seen_lock:
+                if bssid in self._seen:
+                    return
+                self._seen.add(bssid)
 
             info = self._parse_beacon(pkt)
             if info:
                 self._evaluate_and_store(info)
-        except Exception:
-            pass
+        except Exception as e:
+            self.alert_mgr.low("SYSTEM", f"EncryptionAuditor packet parse error ({type(e).__name__})")
 
     def _parse_beacon(self, pkt) -> dict:
         ssid = ""
@@ -366,9 +387,12 @@ class EncryptionAuditor:
 
     def _process_iwlist_entry(self, entry: dict):
         bssid = entry.get('bssid', '')
-        if not bssid or bssid in self._seen:
+        if not bssid:
             return
-        self._seen.add(bssid)
+        with self._seen_lock:
+            if bssid in self._seen:
+                return
+            self._seen.add(bssid)
 
         if entry.get('wpa3'):
             enc = 'WPA3'

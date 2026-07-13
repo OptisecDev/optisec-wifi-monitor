@@ -42,22 +42,34 @@ class AttackDetector:
             self._poll_fallback()
             return
 
-        try:
-            sniff(
-                iface=self.monitor_iface,
-                prn=self._packet_handler,
-                store=False,
-                stop_filter=lambda _: not self._running,
-            )
-        except Exception as e:
-            self.alert_mgr.low("SYSTEM", f"Attack detector sniff error: {e}")
-            self._poll_fallback()
+        # Retry with backoff instead of giving up permanently on the first
+        # sniff() failure - the monitor interface can disappear (unplugged
+        # adapter, rfkill, airmon-ng restart) and come back mid-run.
+        retry_delay = 5
+        while self._running:
+            try:
+                sniff(
+                    iface=self.monitor_iface,
+                    prn=self._packet_handler,
+                    store=False,
+                    stop_filter=lambda _: not self._running,
+                )
+                retry_delay = 5
+            except Exception as e:
+                self.alert_mgr.low(
+                    "SYSTEM",
+                    f"Attack detector sniff error: {e} - retrying in {retry_delay}s"
+                )
+            if not self._running:
+                return
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
     def stop(self):
         self._running = False
 
     def _poll_fallback(self):
-        """Minimal fallback when scapy unavailable."""
+        """Minimal fallback when scapy is unavailable (permanent condition)."""
         while self._running:
             time.sleep(10)
 
@@ -69,8 +81,8 @@ class AttackDetector:
                 self._handle_beacon(pkt)
             if pkt.haslayer(ARP):
                 self._handle_arp(pkt)
-        except Exception:
-            pass
+        except Exception as e:
+            self.alert_mgr.low("SYSTEM", f"AttackDetector packet parse error ({type(e).__name__})")
 
     # --- Deauth Flood ---
     def _handle_deauth(self, pkt):

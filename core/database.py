@@ -18,12 +18,20 @@ class Database:
 
     def _get_conn(self):
         if not hasattr(self._local, 'conn') or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
             self._local.conn.row_factory = sqlite3.Row
+            # busy_timeout is per-connection (unlike journal_mode) - must be set
+            # on every new connection, not just the one that first opens the file.
+            self._local.conn.execute("PRAGMA busy_timeout=30000")
         return self._local.conn
 
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        # WAL lets readers and writers proceed concurrently instead of the
+        # default rollback-journal mode, where a single writer blocks every
+        # other reader/writer - critical now that 8+ threads share this file.
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS devices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,19 +141,22 @@ class Database:
     # --- Devices ---
     def upsert_device(self, mac: str, ip: str = None, hostname: str = None,
                       vendor: str = None, signal: int = None):
-        existing = self.fetchone("SELECT id, is_whitelisted FROM devices WHERE mac = ?", (mac,))
-        if existing:
+        # INSERT OR IGNORE + rowcount replaces a separate SELECT-then-INSERT/UPDATE:
+        # that pattern let two threads (e.g. DeviceMonitor's passive-scan thread and
+        # its own active-nmap loop) both see "no existing row" for the same brand-new
+        # MAC and both try to INSERT, raising UNIQUE constraint IntegrityError. SQLite
+        # serializes the INSERT OR IGNORE itself, so only one thread's insert can win.
+        cursor = self.execute(
+            "INSERT OR IGNORE INTO devices (mac, ip, hostname, vendor, signal_strength) VALUES (?,?,?,?,?)",
+            (mac, ip, hostname, vendor, signal)
+        )
+        is_new = cursor.rowcount == 1
+        if not is_new:
             self.execute(
                 "UPDATE devices SET ip=?, hostname=?, vendor=?, last_seen=?, signal_strength=? WHERE mac=?",
                 (ip, hostname, vendor, datetime.now(), signal, mac)
             )
-            return False  # not new
-        else:
-            self.execute(
-                "INSERT INTO devices (mac, ip, hostname, vendor, signal_strength) VALUES (?,?,?,?,?)",
-                (mac, ip, hostname, vendor, signal)
-            )
-            return True  # new device
+        return is_new
 
     def get_all_devices(self):
         return self.fetchall("SELECT * FROM devices ORDER BY last_seen DESC")
