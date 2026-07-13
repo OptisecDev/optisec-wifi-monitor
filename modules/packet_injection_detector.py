@@ -114,22 +114,35 @@ class PacketInjectionDetector:
             self._poll_fallback()
             return
 
-        try:
-            sniff(
-                iface=self.monitor_iface,
-                prn=self._packet_handler,
-                store=False,
-                stop_filter=lambda _: not self._running,
-            )
-        except Exception as e:
-            self.alert_mgr.low("SYSTEM", f"Packet injection detector sniff error on {self.monitor_iface}: {e}")
-            self._poll_fallback()
+        # Retry with backoff instead of giving up permanently on the first
+        # sniff() failure - the monitor interface can disappear (unplugged
+        # adapter, rfkill, airmon-ng restart) and come back mid-run.
+        retry_delay = 5
+        while self._running:
+            try:
+                sniff(
+                    iface=self.monitor_iface,
+                    prn=self._packet_handler,
+                    store=False,
+                    stop_filter=lambda _: not self._running,
+                )
+                retry_delay = 5
+            except Exception as e:
+                self.alert_mgr.low(
+                    "SYSTEM",
+                    f"Packet injection detector sniff error on {self.monitor_iface}: {e} - "
+                    f"retrying in {retry_delay}s"
+                )
+            if not self._running:
+                return
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
     def stop(self):
         self._running = False
 
     def _poll_fallback(self):
-        """Minimal fallback when scapy/monitor interface is unavailable."""
+        """Minimal fallback when scapy is unavailable (permanent condition)."""
         while self._running:
             time.sleep(10)
 
@@ -137,8 +150,8 @@ class PacketInjectionDetector:
         try:
             if pkt.haslayer(Dot11):
                 self._handle_frame(pkt)
-        except Exception:
-            pass
+        except Exception as e:
+            self.alert_mgr.low("SYSTEM", f"PacketInjectionDetector packet parse error ({type(e).__name__})")
 
     def _handle_frame(self, pkt):
         if not self.is_enabled():

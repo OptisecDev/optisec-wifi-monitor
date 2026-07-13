@@ -2,7 +2,21 @@
 
 import json
 from datetime import datetime
+from functools import wraps
 from flask import Flask, render_template, jsonify, request, redirect, url_for
+
+
+def _json_error_guard(fn):
+    """Turn an unhandled exception (e.g. sqlite3.OperationalError under DB
+    contention) into a clean JSON 500 instead of Flask's default HTML error
+    page, which breaks the frontend's `.json()` parsing of the response."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return wrapper
 
 
 def create_app(components: dict) -> Flask:
@@ -47,6 +61,7 @@ def create_app(components: dict) -> Flask:
     # --- API Routes ---
 
     @app.route('/api/stats')
+    @_json_error_guard
     def api_stats():
         stats = db.get_stats()
         alerts_by_hour = db.get_alerts_by_hour(24)
@@ -59,6 +74,7 @@ def create_app(components: dict) -> Flask:
         })
 
     @app.route('/api/devices')
+    @_json_error_guard
     def api_devices():
         devices = db.get_all_devices()
         whitelist = set(m.upper() for m in config.whitelist)
@@ -67,6 +83,7 @@ def create_app(components: dict) -> Flask:
         return jsonify({'devices': devices, 'total': len(devices)})
 
     @app.route('/api/alerts')
+    @_json_error_guard
     def api_alerts():
         limit = int(request.args.get('limit', 50))
         unresolved = request.args.get('unresolved', 'false').lower() == 'true'
@@ -74,17 +91,20 @@ def create_app(components: dict) -> Flask:
         return jsonify({'alerts': alerts, 'total': len(alerts)})
 
     @app.route('/api/alerts/<int:alert_id>/resolve', methods=['POST'])
+    @_json_error_guard
     def api_resolve_alert(alert_id):
         db.resolve_alert(alert_id)
         return jsonify({'status': 'ok', 'alert_id': alert_id})
 
     @app.route('/api/attacks')
+    @_json_error_guard
     def api_attacks():
         limit = int(request.args.get('limit', 50))
         attacks = db.get_attacks(limit=limit)
         return jsonify({'attacks': attacks, 'total': len(attacks)})
 
     @app.route('/api/encryption')
+    @_json_error_guard
     def api_encryption():
         audits = db.get_audits(limit=100)
         summary = enc_auditor.get_audit_summary() if enc_auditor else {}
@@ -95,6 +115,7 @@ def create_app(components: dict) -> Flask:
         return jsonify({'whitelist': config.whitelist})
 
     @app.route('/api/whitelist', methods=['POST'])
+    @_json_error_guard
     def api_whitelist_add():
         data = request.get_json()
         mac = data.get('mac', '').upper()
@@ -106,6 +127,7 @@ def create_app(components: dict) -> Flask:
         return jsonify({'status': 'error', 'message': 'Invalid MAC'}), 400
 
     @app.route('/api/whitelist/<mac>', methods=['DELETE'])
+    @_json_error_guard
     def api_whitelist_remove(mac):
         mac = mac.upper()
         config.remove_from_whitelist(mac)
@@ -113,6 +135,7 @@ def create_app(components: dict) -> Flask:
         return jsonify({'status': 'ok', 'mac': mac})
 
     @app.route('/api/reports')
+    @_json_error_guard
     def api_reports():
         reports = db.get_reports(limit=10)
         return jsonify({'reports': reports})

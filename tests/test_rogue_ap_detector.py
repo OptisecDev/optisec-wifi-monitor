@@ -196,14 +196,27 @@ class TestRogueAPDetectorDisabled(unittest.TestCase):
 class TestRogueAPDetectorInterfaceUnavailable(unittest.TestCase):
     """If the monitor-mode interface can't be sniffed, start() must fail gracefully."""
 
-    def test_sniff_exception_falls_back_without_crashing(self):
+    def test_sniff_exception_retries_then_stops_when_told(self):
+        """start() must retry sniff() with backoff (interface can reappear
+        mid-run) rather than giving up permanently, but must still not
+        raise and must stop once _running is cleared."""
         detector, db, alert_mgr = make_detector({"enabled": True})
 
-        with patch("modules.rogue_ap_detector.sniff", side_effect=OSError("No such device")):
-            with patch.object(detector, "_poll_fallback") as fallback:
-                detector.start()
-                fallback.assert_called_once()
+        call_count = {"n": 0}
 
+        def fake_sniff(**kwargs):
+            call_count["n"] += 1
+            raise OSError("No such device")
+
+        def fake_sleep(seconds):
+            if call_count["n"] >= 2:
+                detector._running = False
+
+        with patch("modules.rogue_ap_detector.sniff", side_effect=fake_sniff):
+            with patch("modules.rogue_ap_detector.time.sleep", side_effect=fake_sleep):
+                detector.start()
+
+        self.assertGreaterEqual(call_count["n"], 2)
         alert_mgr.low.assert_called()
         self.assertIn("wlan1mon", alert_mgr.low.call_args[0][1])
 

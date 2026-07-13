@@ -162,6 +162,44 @@ def start_monitoring_threads(components: dict) -> list:
     return threads
 
 
+_STOPPABLE_COMPONENTS = (
+    'device_monitor', 'attack_detector', 'deauth_detector', 'rogue_ap_detector',
+    'wps_detector', 'packet_injection_detector', 'enc_auditor', 'ai_engine', 'telegram',
+)
+
+
+def stop_all_components(components: dict):
+    """Signal every monitoring thread to exit its sniff/poll loop.
+
+    Threads are daemon=True so the process itself never hangs without this,
+    but nothing was calling .stop() anywhere - each detector's sniff() session
+    only ever ended via the whole process dying, never gracefully. Safe to
+    call more than once (each .stop() just sets a flag).
+    """
+    for name in _STOPPABLE_COMPONENTS:
+        comp = components.get(name)
+        if comp is None:
+            continue
+        try:
+            comp.stop()
+        except Exception:
+            pass
+
+
+def _install_shutdown_handler(components: dict):
+    """Ensure SIGTERM (e.g. from systemd or `kill`) also stops components.
+
+    Python has no default handler for SIGTERM (unlike SIGINT, which it turns
+    into KeyboardInterrupt), so without this a `kill`/service-stop would skip
+    the try/finally cleanup in each CLI command entirely.
+    """
+    def _handler(signum, frame):
+        console.print("\n[yellow]⚠  Received termination signal - shutting down...[/yellow]")
+        stop_all_components(components)
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, _handler)
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
@@ -191,12 +229,16 @@ def tui(monitor_iface, internet_iface, lang):
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
+    _install_shutdown_handler(components)
 
     from tui.dashboard import TUIDashboard
     dash = TUIDashboard(components)
     console.print("\n[green]✓  Starting TUI dashboard... (Ctrl+C to exit)[/green]\n")
     time.sleep(0.5)
-    dash.run()
+    try:
+        dash.run()
+    finally:
+        stop_all_components(components)
 
 
 @cli.command()
@@ -214,12 +256,16 @@ def web(monitor_iface, internet_iface, port, lang):
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
+    _install_shutdown_handler(components)
 
     from web.app import create_app
     app = create_app(components)
     console.print(f"\n[green]✓  Web dashboard: [bold]http://0.0.0.0:{port}[/bold][/green]")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    finally:
+        stop_all_components(components)
 
 
 @cli.command()
@@ -237,6 +283,7 @@ def both(monitor_iface, internet_iface, port, lang):
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
     start_monitoring_threads(components)
+    _install_shutdown_handler(components)
 
     # Start web in background thread
     from web.app import create_app
@@ -253,7 +300,10 @@ def both(monitor_iface, internet_iface, port, lang):
     from tui.dashboard import TUIDashboard
     dash = TUIDashboard(components)
     time.sleep(0.5)
-    dash.run()
+    try:
+        dash.run()
+    finally:
+        stop_all_components(components)
 
 
 @cli.command('config')

@@ -121,18 +121,31 @@ class DeviceMonitor:
                     if src and src != "ff:ff:ff:ff:ff:ff":
                         self._handle_new_device(src)
 
-            except Exception:
-                pass
+            except Exception as e:
+                self.alert_mgr.low("SYSTEM", f"DeviceMonitor packet parse error ({type(e).__name__})")
 
-        try:
-            sniff(
-                iface=self.monitor_iface,
-                prn=packet_handler,
-                store=False,
-                stop_filter=lambda _: not self._running,
-            )
-        except Exception as e:
-            self.alert_mgr.low("SYSTEM", f"Passive scan error: {e}")
+        # Retry with backoff instead of giving up permanently on the first
+        # sniff() failure - the monitor interface can disappear (unplugged
+        # adapter, rfkill, airmon-ng restart) and come back mid-run.
+        retry_delay = 5
+        while self._running:
+            try:
+                sniff(
+                    iface=self.monitor_iface,
+                    prn=packet_handler,
+                    store=False,
+                    stop_filter=lambda _: not self._running,
+                )
+                retry_delay = 5
+            except Exception as e:
+                self.alert_mgr.low(
+                    "SYSTEM",
+                    f"Passive scan error: {e} - retrying in {retry_delay}s"
+                )
+            if not self._running:
+                return
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
     def _active_nmap_scan(self):
         """Active nmap host discovery on local network."""

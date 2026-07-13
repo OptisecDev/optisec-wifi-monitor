@@ -7,6 +7,9 @@ import json
 import requests
 from collections import defaultdict
 from datetime import datetime
+from rich.console import Console
+
+console = Console()
 
 # Vendors commonly associated with monitoring/attack tools — elevated local risk
 _HIGH_RISK_VENDORS = frozenset({'Alfa Networks', 'Unknown'})
@@ -51,7 +54,10 @@ class AIEngine:
         while self._running:
             time.sleep(interval)
             if self._running:
-                self.generate_periodic_report()
+                try:
+                    self.generate_periodic_report()
+                except Exception as e:
+                    console.print(f"[yellow]⚠  AIEngine periodic report failed: {e}[/yellow]")
 
     def stop(self):
         self._running = False
