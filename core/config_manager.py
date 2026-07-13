@@ -41,6 +41,10 @@ DEFAULT_CONFIG = {
         "signal_deviation_db": 20,
         "eval_throttle_seconds": 5,
     },
+    "wps_detection": {
+        "enabled": True,
+        "eval_throttle_seconds": 300,
+    },
     "web_port": 5000,
     "db_path": os.path.expanduser("~/.optisec/optisec.db"),
     "scan_interval": 30,
@@ -133,6 +137,10 @@ class ConfigManager:
     @property
     def rogue_ap_detection(self) -> dict:
         return self.config.get("rogue_ap_detection", DEFAULT_CONFIG["rogue_ap_detection"])
+
+    @property
+    def wps_detection(self) -> dict:
+        return self.config.get("wps_detection", DEFAULT_CONFIG["wps_detection"])
 
     @property
     def db_path(self) -> str:
