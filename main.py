@@ -25,6 +25,7 @@ from modules.attack_detector import AttackDetector
 from modules.deauth_detector import DeauthDetector
 from modules.rogue_ap_detector import RogueAPDetector
 from modules.wps_detector import WPSDetector
+from modules.packet_injection_detector import PacketInjectionDetector
 from modules.encryption_auditor import EncryptionAuditor
 from modules.ai_engine import AIEngine
 from modules.telegram_notifier import TelegramNotifier
@@ -112,6 +113,7 @@ def init_components(monitor_iface: str, internet_iface: str, lang: str,
     deauth_detector = DeauthDetector(db, config, alert_mgr, monitor_iface)
     rogue_ap_detector = RogueAPDetector(db, config, alert_mgr, monitor_iface, attack_detector=attack_detector)
     wps_detector    = WPSDetector(db, config, alert_mgr, monitor_iface)
+    packet_injection_detector = PacketInjectionDetector(db, config, alert_mgr, monitor_iface)
     enc_auditor     = EncryptionAuditor(db, alert_mgr, monitor_iface)
     ai_engine       = AIEngine(db, config, config.language)
     pdf_reporter    = PDFReporter(db, config)
@@ -132,6 +134,7 @@ def init_components(monitor_iface: str, internet_iface: str, lang: str,
         'deauth_detector': deauth_detector,
         'rogue_ap_detector': rogue_ap_detector,
         'wps_detector':     wps_detector,
+        'packet_injection_detector': packet_injection_detector,
         'enc_auditor':     enc_auditor,
         'ai_engine':       ai_engine,
         'pdf_reporter':    pdf_reporter,
@@ -148,6 +151,7 @@ def start_monitoring_threads(components: dict) -> list:
         ('DeauthDetector', components['deauth_detector'].start),
         ('RogueAPDetector', components['rogue_ap_detector'].start),
         ('WPSDetector', components['wps_detector'].start),
+        ('PacketInjectionDetector', components['packet_injection_detector'].start),
         ('EncryptionAuditor', components['enc_auditor'].start),
         ('AIEngine', components['ai_engine'].start),
     ]:
