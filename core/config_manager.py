@@ -34,6 +34,13 @@ DEFAULT_CONFIG = {
         "burst_count": 15,
         "burst_window": 10,
     },
+    "rogue_ap_detection": {
+        "enabled": True,
+        "min_trusted_sightings": 3,
+        "min_trusted_age_minutes": 30,
+        "signal_deviation_db": 20,
+        "eval_throttle_seconds": 5,
+    },
     "web_port": 5000,
     "db_path": os.path.expanduser("~/.optisec/optisec.db"),
     "scan_interval": 30,
@@ -122,6 +129,10 @@ class ConfigManager:
     @property
     def deauth_detection(self) -> dict:
         return self.config.get("deauth_detection", DEFAULT_CONFIG["deauth_detection"])
+
+    @property
+    def rogue_ap_detection(self) -> dict:
+        return self.config.get("rogue_ap_detection", DEFAULT_CONFIG["rogue_ap_detection"])
 
     @property
     def db_path(self) -> str:

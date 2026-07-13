@@ -180,6 +180,16 @@ class AttackDetector:
                 )
             known_macs.add(mac)
 
+    def get_known_bssids(self, ssid: str = None):
+        """Read-only snapshot of BSSIDs seen this run, for other detectors to
+        cross-check against (e.g. RogueAPDetector) without duplicating this
+        tracking. Does not affect Evil Twin detection itself.
+        """
+        with self._ap_lock:
+            if ssid is not None:
+                return set(self._known_networks.get(ssid, set()))
+            return {s: set(b) for s, b in self._known_networks.items()}
+
     def get_stats(self) -> dict:
         with self._deauth_lock:
             active_deauth_sources = len(self._deauth_log)
