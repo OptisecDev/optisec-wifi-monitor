@@ -29,6 +29,11 @@ DEFAULT_CONFIG = {
         "arp_rate_limit": 50,
         "new_device_alert": True,
     },
+    "deauth_detection": {
+        "enabled": True,
+        "burst_count": 15,
+        "burst_window": 10,
+    },
     "web_port": 5000,
     "db_path": os.path.expanduser("~/.optisec/optisec.db"),
     "scan_interval": 30,
@@ -113,6 +118,10 @@ class ConfigManager:
     @property
     def alert_thresholds(self) -> dict:
         return self.config.get("alert_thresholds", DEFAULT_CONFIG["alert_thresholds"])
+
+    @property
+    def deauth_detection(self) -> dict:
+        return self.config.get("deauth_detection", DEFAULT_CONFIG["deauth_detection"])
 
     @property
     def db_path(self) -> str:
