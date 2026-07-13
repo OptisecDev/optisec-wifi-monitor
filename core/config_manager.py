@@ -45,6 +45,15 @@ DEFAULT_CONFIG = {
         "enabled": True,
         "eval_throttle_seconds": 300,
     },
+    "packet_injection_detection": {
+        "enabled": True,
+        "seq_jump_threshold": 1000,
+        "seq_history_size": 20,
+        "replay_count_threshold": 5,
+        "replay_window_seconds": 10,
+        "anomaly_window_seconds": 60,
+        "eval_throttle_seconds": 5,
+    },
     "web_port": 5000,
     "db_path": os.path.expanduser("~/.optisec/optisec.db"),
     "scan_interval": 30,
@@ -141,6 +150,10 @@ class ConfigManager:
     @property
     def wps_detection(self) -> dict:
         return self.config.get("wps_detection", DEFAULT_CONFIG["wps_detection"])
+
+    @property
+    def packet_injection_detection(self) -> dict:
+        return self.config.get("packet_injection_detection", DEFAULT_CONFIG["packet_injection_detection"])
 
     @property
     def db_path(self) -> str:
