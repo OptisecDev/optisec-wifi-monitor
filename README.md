@@ -214,6 +214,21 @@ Or edit `~/.optisec/config.json` directly:
 }
 ```
 
+### Detection Modules
+
+Each passive detector runs on its own thread and is independently toggleable:
+
+| Module | Config key | Defaults |
+|--------|-----------|----------|
+| Deauth burst detection | `deauth_detection` | `enabled: true, burst_count: 15, burst_window: 10` |
+| Rogue AP detection | `rogue_ap_detection` | `enabled: true, min_trusted_sightings: 3, min_trusted_age_minutes: 30, signal_deviation_db: 20, eval_throttle_seconds: 5` |
+
+**Rogue AP detection** goes beyond the Evil Twin check baked into `attack_detector.py` (which only flags a second BSSID for an SSID *within the current run*). It keeps a persistent, cross-restart BSSID baseline (`bssid_baseline` table) and flags:
+- A new BSSID appearing for an SSID that already has an established trust history (either in its own baseline, or reused from `AttackDetector`'s live known-BSSID view).
+- A previously-trusted BSSID whose signal strength suddenly shifts beyond `signal_deviation_db`, consistent with a spoofed/relayed AP broadcasting from a different physical location.
+
+Disable either by setting `"enabled": false` under its config key.
+
 ### Getting a Groq API Key (free)
 
 1. Sign up at [groq.com](https://groq.com)
@@ -236,7 +251,9 @@ optisec-wifi-monitor/
 │   └── oui_lookup.py          # Static OUI vendor table
 ├── modules/
 │   ├── device_monitor.py      # Passive scapy + active nmap
-│   ├── attack_detector.py     # Attack pattern detection
+│   ├── attack_detector.py     # Deauth flood, Evil Twin, ARP poisoning
+│   ├── deauth_detector.py     # Passive deauth/disassoc burst detection
+│   ├── rogue_ap_detector.py   # Rogue AP: persistent BSSID trust baseline + signal anomaly
 │   ├── encryption_auditor.py  # Beacon/iwlist encryption audit
 │   ├── ai_engine.py           # Groq API + risk scoring
 │   ├── telegram_notifier.py   # Instant + batched Telegram alerts
@@ -255,10 +272,12 @@ optisec-wifi-monitor/
 ```
 WiFi Adapter (monitor mode)
     │
-    ├─► DeviceMonitor  ──► SQLite DB ──► TUI / Web
-    ├─► AttackDetector ──► AlertManager ──► Telegram / TUI
+    ├─► DeviceMonitor    ──► SQLite DB ──► TUI / Web
+    ├─► AttackDetector   ──► AlertManager ──► Telegram / TUI
+    ├─► DeauthDetector   ──► AlertManager ──► Telegram / TUI
+    ├─► RogueAPDetector  ──► bssid_baseline (SQLite) + AlertManager ──► Telegram / TUI
     ├─► EncryptionAuditor ──► DB ──► PDF / TUI
-    └─► AIEngine (Groq) ──► DB ──► TUI panel
+    └─► AIEngine (Groq)  ──► DB ──► TUI panel
 ```
 
 ---
