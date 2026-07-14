@@ -178,7 +178,7 @@ class TUIDashboard:
         table.add_row("Alerts",   f"[red]{stats['active_alerts']}[/red]")
         table.add_row("Attacks",  f"[yellow]{stats['total_attacks']}[/yellow]")
         table.add_row("Networks", f"[green]{stats['audits']}[/green]")
-        return Panel(table, title="[bold]Stats[/bold]", border_style="blue")
+        return Panel(table, title="[bold blue]Stats[/bold blue]", border_style="blue")
 
     def _make_devices_panel(self, max_rows: int = 10) -> Panel:
         devices   = self.db.get_all_devices()[:max_rows]
@@ -217,7 +217,7 @@ class TUIDashboard:
             last = last[11:16] if len(last) > 11 else last[:5]
             table.add_row(mac, ip, vendor, status, last)
 
-        return Panel(table, title=f"[bold]Devices ({len(devices)})[/bold]",
+        return Panel(table, title=f"[bold cyan]Devices ({len(devices)})[/bold cyan]",
                      border_style="cyan")
 
     def _make_alerts_panel(self, max_rows: int = 10) -> Panel:
@@ -232,6 +232,7 @@ class TUIDashboard:
         for a in alerts:
             sev   = a.get('severity', 'INFO')
             style = SEVERITY_STYLE.get(sev, "white")
+            icon  = SEVERITY_ICON.get(sev, "")
             ts    = str(a.get('timestamp', ''))
             ts    = ts[11:16] if len(ts) > 11 else ts[:5]
             atype = str(a.get('alert_type', ''))[:14]
@@ -242,34 +243,40 @@ class TUIDashboard:
 
             table.add_row(
                 ts,
-                f"[{style}]{atype}[/{style}]",
+                f"[{style}]{icon} {atype}[/{style}]",
                 f"[{style}]{mac}[/{style}]",
                 f"[{style}]{det}[/{style}]",
             )
 
-        return Panel(table, title="[bold red]Live Alerts[/bold red]",
+        return Panel(table, title=f"[bold red]Live Alerts ({len(alerts)})[/bold red]",
                      border_style="red")
 
     def _make_attacks_panel(self, max_rows: int = 6) -> Panel:
         attacks = self.db.get_attacks(limit=max_rows)
         table   = Table(show_header=True, header_style="bold yellow",
                         box=box.SIMPLE, expand=True)
-        table.add_column("Time",   style="dim",    min_width=6)
-        table.add_column("Type",   style="yellow", min_width=14)
-        table.add_column("Source", style="red",    min_width=18)
+        table.add_column("Time",   style="dim", min_width=6)
+        table.add_column("Type",   min_width=14)
+        table.add_column("Source", min_width=18)
         table.add_column("Details")
 
         for atk in attacks:
-            ts   = str(atk.get('timestamp', ''))
-            ts   = ts[11:16] if len(ts) > 11 else ts[:5]
+            sev     = atk.get('severity', 'INFO')
+            style   = SEVERITY_STYLE.get(sev, "white")
+            icon    = SEVERITY_ICON.get(sev, "")
+            ts      = str(atk.get('timestamp', ''))
+            ts      = ts[11:16] if len(ts) > 11 else ts[:5]
+            source  = str(atk.get('source_mac', 'N/A') or 'N/A')
+            details = str(atk.get('details', ''))[:50]
+
             table.add_row(
                 ts,
-                str(atk.get('attack_type', '')),
-                str(atk.get('source_mac', 'N/A') or 'N/A'),
-                str(atk.get('details', ''))[:50],
+                f"[{style}]{icon} {atk.get('attack_type', '')}[/{style}]",
+                f"[{style}]{source}[/{style}]",
+                f"[{style}]{details}[/{style}]",
             )
 
-        return Panel(table, title="[bold yellow]Attack Log[/bold yellow]",
+        return Panel(table, title=f"[bold yellow]Attack Log ({len(attacks)})[/bold yellow]",
                      border_style="yellow")
 
     @staticmethod
@@ -299,6 +306,8 @@ class TUIDashboard:
         table.add_column("Status",   min_width=10)
         table.add_column("Findings")
 
+        any_rows = False
+
         if self.deauth_detector:
             stats  = self.deauth_detector.get_stats()
             bursts = stats.get('bursts_detected', 0)
@@ -309,6 +318,7 @@ class TUIDashboard:
                 f"[{c}]{bursts} burst(s)[/{c}] "
                 f"[dim]({stats.get('active_deauth_sources', 0)} active src)[/dim]",
             )
+            any_rows = True
 
         if self.rogue_ap_detector:
             stats   = self.rogue_ap_detector.get_stats()
@@ -320,6 +330,7 @@ class TUIDashboard:
                 f"[{c}]{flagged} flagged[/{c}] "
                 f"[dim]({stats.get('tracked_bssids', 0)} tracked)[/dim]",
             )
+            any_rows = True
 
         if self.wps_detector:
             stats = self.wps_detector.get_stats()
@@ -331,6 +342,7 @@ class TUIDashboard:
                 f"[{c}]{vuln} vulnerable[/{c}] "
                 f"[dim]({stats.get('wps_enabled_aps', 0)} WPS APs)[/dim]",
             )
+            any_rows = True
 
         if self.packet_injection_detector:
             stats  = self.packet_injection_detector.get_stats()
@@ -343,6 +355,10 @@ class TUIDashboard:
             if breakdown:
                 findings += f" [dim]({breakdown})[/dim]"
             table.add_row("Pkt Inject", self._detector_status_text(stats), findings)
+            any_rows = True
+
+        if not any_rows:
+            table.add_row("[dim]—[/dim]", "[dim]No detectors configured[/dim]", "")
 
         return Panel(table, title="[bold white]Detector Status[/bold white]",
                      border_style="white")
@@ -354,11 +370,11 @@ class TUIDashboard:
 
         table = Table(show_header=True, header_style="bold blue",
                       box=box.SIMPLE, expand=True)
-        table.add_column("",     min_width=2)   # selector
-        table.add_column("SSID", min_width=14)
-        table.add_column("Enc",  min_width=9)
-        table.add_column("Sc",   min_width=4)
-        table.add_column("WPS",  min_width=4)
+        table.add_column("",      min_width=2)   # selector
+        table.add_column("SSID",  min_width=14)
+        table.add_column("Enc",   min_width=9)
+        table.add_column("Score", min_width=5)
+        table.add_column("WPS",   min_width=4)
 
         for i, a in enumerate(audits[:max_rows]):
             ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
@@ -366,13 +382,7 @@ class TUIDashboard:
             score = int(a.get('security_score', 0))
             wps   = "[red]Y[/red]" if a.get('wps_enabled') else "[green]N[/green]"
 
-            if score >= 70:
-                row_c = "green"
-            elif score >= 40:
-                row_c = "yellow"
-            else:
-                row_c = "red"
-
+            row_c    = score_color(score)
             enc_c    = "green" if "WPA3" in enc else ("cyan" if "WPA2" in enc else "red")
             selector = "[bold cyan]▶[/bold cyan]" if i == sel_idx else " "
 
@@ -385,17 +395,24 @@ class TUIDashboard:
             )
 
         # Show selected network details in title
-        title = "[bold blue]Networks[/bold blue]"
+        title = f"[bold blue]Networks ({n})[/bold blue]"
         if audits:
             ssid_sel = _sanitize_ssid(audits[sel_idx].get('ssid', ''), max_len=12)
-            title = f"[bold blue]Networks[/bold blue] [dim]▶ {ssid_sel}[/dim]  [dim]n/p=select[/dim]"
+            title = (f"[bold blue]Networks ({n})[/bold blue] "
+                     f"[dim]▶ {ssid_sel}[/dim]  [dim]n/p=select[/dim]")
 
         return Panel(table, title=title, border_style="blue")
 
     def _make_encryption_panel(self, max_rows: int = 6) -> Panel:
         audits = self.db.get_audits(limit=max_rows)
-        table  = Table(show_header=True, header_style="bold green",
-                       box=box.SIMPLE, expand=True)
+        has_issue = any(
+            a.get('wps_enabled') or "WPA3" not in str(a.get('encryption_type', ''))
+            for a in audits
+        )
+        panel_color = "red" if has_issue else "green"
+
+        table = Table(show_header=True, header_style=f"bold {panel_color}",
+                      box=box.SIMPLE, expand=True)
         table.add_column("SSID",       min_width=14)
         table.add_column("BSSID",      style="dim", min_width=18)
         table.add_column("Encryption", min_width=10)
@@ -405,7 +422,7 @@ class TUIDashboard:
         for a in audits:
             ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
             enc   = str(a.get('encryption_type', 'UNKNOWN'))
-            wps   = "[red]YES[/red]" if a.get('wps_enabled') else "[green]No[/green]"
+            wps   = "[red]Yes[/red]" if a.get('wps_enabled') else "[green]No[/green]"
             score = int(a.get('security_score', 0))
             sc    = score_color(score)
             enc_c = "green" if "WPA3" in enc else ("cyan" if "WPA2" in enc else "red")
@@ -414,8 +431,8 @@ class TUIDashboard:
                           f"[{enc_c}]{enc}[/{enc_c}]", wps,
                           f"[{sc}]{score}[/{sc}]")
 
-        return Panel(table, title="[bold green]Encryption Audit[/bold green]",
-                     border_style="green")
+        title = f"[bold {panel_color}]Encryption Audit ({len(audits)})[/bold {panel_color}]"
+        return Panel(table, title=title, border_style=panel_color)
 
     def _make_ai_panel(self) -> Panel:
         """AI insights: rule-based risk scores + last Groq report summary."""
@@ -468,7 +485,6 @@ class TUIDashboard:
             "[dim]q[/dim] Quit  "
             "[dim]r[/dim] PDF Report  "
             "[dim]n/p[/dim] Network Select  "
-            "[dim]w[/dim] Whitelist  "
             + status
         )
         return Panel(help_text, height=3, border_style="dim")
@@ -492,11 +508,11 @@ class TUIDashboard:
             Layout(name="networks", size=12),
         )
         layout["right"].split_column(
-            Layout(name="alerts"),
-            Layout(name="attacks",    size=9),
-            Layout(name="detectors",  size=9),
-            Layout(name="encryption", size=10),
-            Layout(name="ai",         size=10),
+            Layout(name="alerts", minimum_size=10),
+            Layout(name="attacks",    size=8),
+            Layout(name="detectors",  size=8),
+            Layout(name="encryption", size=9),
+            Layout(name="ai",         size=8),
         )
         return layout
 
