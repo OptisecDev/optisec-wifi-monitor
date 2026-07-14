@@ -1,20 +1,35 @@
 """License key generation and storage for Optisec WiFi Monitor."""
 
 import hashlib
+import hmac
 import json
 import os
-import uuid
 from datetime import datetime
 
 LICENSE_PATH = os.path.expanduser("~/.optisec/license.key")
+MACHINE_ID_PATH = "/etc/machine-id"
+
+# Signing secret embedded in the shipped source. This lets the app verify a
+# license key was actually issued by this codebase (and for this machine)
+# rather than accepting any well-formed string, which is a real improvement
+# over no verification at all. It is NOT a substitute for server-side
+# activation: anyone with source access can read this constant or simply
+# patch is_valid, so this only raises the bar against casual copying /
+# hand-edited license files, not a determined attacker with the source.
+_APP_SECRET = bytes.fromhex(
+    "0f67e06a07c82c306dfc9403a108b7443ef560a98b4659b704ba7cd94f325f37"
+)
+
+_VERSION = "2.0"
 
 
 class LicenseManager:
     def __init__(self):
-        self.name    = ""
-        self.key     = ""
-        self.issued  = ""
-        self._loaded = False
+        self.name       = ""
+        self.key        = ""
+        self.issued     = ""
+        self.machine_id = ""
+        self._loaded    = False
 
     # ── Public ────────────────────────────────────────────────────────────
 
@@ -31,7 +46,11 @@ class LicenseManager:
 
     @property
     def is_valid(self) -> bool:
-        return bool(self.name and self.key)
+        if not (self.name and self.key and self.machine_id):
+            return False
+        if self.machine_id != self._current_machine_id():
+            return False
+        return hmac.compare_digest(self._sign(self.name, self.machine_id), self.key)
 
     @property
     def display(self) -> str:
@@ -39,39 +58,59 @@ class LicenseManager:
 
     # ── Internal ──────────────────────────────────────────────────────────
 
-    def _generate(self, name: str):
-        self.name   = name.strip() or "User"
-        self.key    = self._make_key(self.name)
-        self.issued = datetime.now().strftime("%Y-%m-%d")
-
-    def _make_key(self, name: str) -> str:
+    @staticmethod
+    def _current_machine_id() -> str:
         try:
-            with open("/etc/machine-id") as f:
-                machine_id = f.read().strip()
+            with open(MACHINE_ID_PATH) as f:
+                return f.read().strip()
         except Exception:
-            machine_id = str(uuid.uuid4())
+            return ""
 
-        raw    = f"{name}:{machine_id}:{uuid.uuid4()}"
-        digest = hashlib.sha256(raw.encode()).hexdigest().upper()
+    @staticmethod
+    def _sign(name: str, machine_id: str) -> str:
+        raw    = f"{name}:{machine_id}".encode()
+        digest = hmac.new(_APP_SECRET, raw, hashlib.sha256).hexdigest().upper()
         return f"OPS-{digest[0:4]}-{digest[4:8]}-{digest[8:12]}-{digest[12:16]}"
+
+    def _generate(self, name: str):
+        self.name       = name.strip() or "User"
+        self.machine_id = self._current_machine_id()
+        self.key        = self._sign(self.name, self.machine_id)
+        self.issued     = datetime.now().strftime("%Y-%m-%d")
 
     def _save(self):
         os.makedirs(os.path.dirname(LICENSE_PATH), exist_ok=True)
         with open(LICENSE_PATH, "w") as f:
             json.dump({
-                "name":    self.name,
-                "key":     self.key,
-                "issued":  self.issued,
-                "version": "1.0",
+                "name":       self.name,
+                "key":        self.key,
+                "issued":     self.issued,
+                "machine_id": self.machine_id,
+                "version":    _VERSION,
             }, f, indent=4)
+        os.chmod(LICENSE_PATH, 0o600)
 
     def _load(self):
         try:
             with open(LICENSE_PATH) as f:
                 data = json.load(f)
-            self.name   = data.get("name", "User")
-            self.key    = data.get("key", "")
-            self.issued = data.get("issued", "")
         except Exception:
-            self._generate("User")
+            # Unreadable/corrupt file: fail closed rather than silently
+            # issuing a brand-new "valid" license for a generic name.
+            self.name = self.key = self.machine_id = self.issued = ""
+            return
+
+        self.name       = data.get("name", "")
+        self.issued     = data.get("issued", "")
+        self.machine_id = data.get("machine_id", "")
+        self.key        = data.get("key", "")
+
+        if data.get("version") != _VERSION and self.name:
+            # One-time migration from the pre-signing (v1.0) format: re-issue
+            # a properly signed key for the name already on file, bound to
+            # this machine. Only a pre-existing, named local file is
+            # migrated this way - an unreadable/empty file above is never
+            # auto-issued, and a v2.0 file that fails signature/machine
+            # verification below is left invalid rather than "healed".
+            self._generate(self.name)
             self._save()

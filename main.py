@@ -81,6 +81,25 @@ def init_license() -> LicenseManager:
     return lic
 
 
+def require_valid_license(lic: LicenseManager):
+    """Block startup unless the license file is present, signed, and bound
+    to this machine. Without this, license status never affected anything
+    the app did - is_valid was only read to decide whether to print a
+    header string."""
+    if lic.is_valid:
+        return
+    console.print(Panel.fit(
+        "[bold red]LICENSE INVALID[/bold red]\n\n"
+        "[white]No valid license was found for this machine.\n"
+        f"Expected file: [cyan]{os.path.expanduser('~/.optisec/license.key')}[/cyan]\n\n"
+        "This can happen if the license file is missing, was edited,\n"
+        "or was copied from a different machine (licenses are bound\n"
+        "to one machine each).[/white]",
+        border_style="red",
+    ))
+    sys.exit(1)
+
+
 def init_components(monitor_iface: str, internet_iface: str, lang: str,
                     license_mgr: LicenseManager = None) -> dict:
     db = Database()
@@ -223,6 +242,7 @@ def tui(monitor_iface, internet_iface, lang):
     """Launch the Rich TUI dashboard."""
     print_banner()
     lic = init_license()
+    require_valid_license(lic)
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
@@ -250,6 +270,7 @@ def web(monitor_iface, internet_iface, port, lang):
     """Launch the Flask web dashboard."""
     print_banner()
     lic = init_license()
+    require_valid_license(lic)
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
@@ -277,6 +298,7 @@ def both(monitor_iface, internet_iface, port, lang):
     """Launch TUI + web dashboard simultaneously."""
     print_banner()
     lic = init_license()
+    require_valid_license(lic)
     if not require_authorization():
         console.print("[red]Authorization not confirmed. Exiting.[/red]")
         sys.exit(0)
