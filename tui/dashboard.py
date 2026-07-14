@@ -73,6 +73,7 @@ class TUIDashboard:
     _ATTACKS_LAYOUT_SIZE    = 8
     _DETECTORS_LAYOUT_SIZE  = 8
     _ENCRYPTION_LAYOUT_SIZE = 9
+    _NETWORKS_LAYOUT_SIZE   = 12
     _PANEL_ROW_OVERHEAD     = 5  # top border + top pad + header + rule + bottom border
 
     @classmethod
@@ -389,10 +390,13 @@ class TUIDashboard:
             else "[bold white]Detector Status[/bold white]"
         return Panel(table, title=title, border_style="white")
 
-    def _make_networks_panel(self, max_rows: int = 8) -> Panel:
+    def _make_networks_panel(self) -> Panel:
         audits  = self.db.get_audits(limit=50)
         n       = len(audits)
         sel_idx = self._selected_net_idx % n if n else 0
+
+        row_budget = self._rows_that_fit(self._NETWORKS_LAYOUT_SIZE)
+        shown      = audits[:row_budget]
 
         table = Table(show_header=True, header_style="bold blue",
                       box=box.SIMPLE, expand=True)
@@ -402,7 +406,7 @@ class TUIDashboard:
         table.add_column("Score", min_width=5)
         table.add_column("WPS",   min_width=4)
 
-        for i, a in enumerate(audits[:max_rows]):
+        for i, a in enumerate(shown):
             ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
             enc   = str(a.get('encryption_type', 'UNKNOWN'))
             score = int(a.get('security_score', 0))
@@ -421,10 +425,11 @@ class TUIDashboard:
             )
 
         # Show selected network details in title
-        title = f"[bold blue]Networks ({n})[/bold blue]"
+        label = self._count_label(len(shown), n) if n else "0"
+        title = f"[bold blue]Networks ({label})[/bold blue]"
         if audits:
             ssid_sel = _sanitize_ssid(audits[sel_idx].get('ssid', ''), max_len=12)
-            title = (f"[bold blue]Networks ({n})[/bold blue] "
+            title = (f"[bold blue]Networks ({label})[/bold blue] "
                      f"[dim]▶ {ssid_sel}[/dim]  [dim]n/p=select[/dim]")
 
         return Panel(table, title=title, border_style="blue")
@@ -536,7 +541,7 @@ class TUIDashboard:
         layout["left"].split_column(
             Layout(name="stats",    size=8),
             Layout(name="devices"),
-            Layout(name="networks", size=12),
+            Layout(name="networks", size=self._NETWORKS_LAYOUT_SIZE),
         )
         layout["right"].split_column(
             Layout(name="alerts", minimum_size=10),
