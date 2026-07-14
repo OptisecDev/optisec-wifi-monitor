@@ -79,7 +79,9 @@ class LicenseManager:
         self.issued     = datetime.now().strftime("%Y-%m-%d")
 
     def _save(self):
-        os.makedirs(os.path.dirname(LICENSE_PATH), exist_ok=True)
+        license_dir = os.path.dirname(LICENSE_PATH)
+        os.makedirs(license_dir, exist_ok=True)
+        os.chmod(license_dir, 0o700)
         with open(LICENSE_PATH, "w") as f:
             json.dump({
                 "name":       self.name,
