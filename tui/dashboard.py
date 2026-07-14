@@ -66,6 +66,23 @@ def score_color(score: int) -> str:
 
 
 class TUIDashboard:
+    # Fixed panel heights from _build_layout(), duplicated here (rather than
+    # read back from the Layout at render time) so each panel builder can
+    # compute how many data rows actually fit in its own box and report an
+    # honest "shown/total" in its title instead of a count that overclaims.
+    _ATTACKS_LAYOUT_SIZE    = 8
+    _DETECTORS_LAYOUT_SIZE  = 8
+    _ENCRYPTION_LAYOUT_SIZE = 9
+    _PANEL_ROW_OVERHEAD     = 5  # top border + top pad + header + rule + bottom border
+
+    @classmethod
+    def _rows_that_fit(cls, layout_size: int) -> int:
+        return max(1, layout_size - cls._PANEL_ROW_OVERHEAD)
+
+    @staticmethod
+    def _count_label(shown: int, total: int) -> str:
+        return f"{shown}/{total}" if shown < total else str(total)
+
     def __init__(self, components: dict):
         self.db             = components['db']
         self.config         = components['config']
@@ -251,8 +268,12 @@ class TUIDashboard:
         return Panel(table, title=f"[bold red]Live Alerts ({len(alerts)})[/bold red]",
                      border_style="red")
 
-    def _make_attacks_panel(self, max_rows: int = 6) -> Panel:
-        attacks = self.db.get_attacks(limit=max_rows)
+    def _make_attacks_panel(self) -> Panel:
+        row_budget = self._rows_that_fit(self._ATTACKS_LAYOUT_SIZE)
+        attacks    = self.db.get_attacks(limit=50)
+        total      = len(attacks)
+        shown      = attacks[:row_budget]
+
         table   = Table(show_header=True, header_style="bold yellow",
                         box=box.SIMPLE, expand=True)
         table.add_column("Time",   style="dim", min_width=6)
@@ -260,7 +281,7 @@ class TUIDashboard:
         table.add_column("Source", min_width=18)
         table.add_column("Details")
 
-        for atk in attacks:
+        for atk in shown:
             sev     = atk.get('severity', 'INFO')
             style   = SEVERITY_STYLE.get(sev, "white")
             icon    = SEVERITY_ICON.get(sev, "")
@@ -276,7 +297,8 @@ class TUIDashboard:
                 f"[{style}]{details}[/{style}]",
             )
 
-        return Panel(table, title=f"[bold yellow]Attack Log ({len(attacks)})[/bold yellow]",
+        label = self._count_label(len(shown), total)
+        return Panel(table, title=f"[bold yellow]Attack Log ({label})[/bold yellow]",
                      border_style="yellow")
 
     @staticmethod
@@ -300,49 +322,40 @@ class TUIDashboard:
         (Deauth, Rogue AP, WPS, Packet Injection) - beyond their alerts already
         surfacing in the Live Alerts panel, this shows enabled/running state
         and a per-detector session summary in one place."""
-        table = Table(show_header=True, header_style="bold white",
-                      box=box.SIMPLE, expand=True)
-        table.add_column("Detector", style="white", min_width=10)
-        table.add_column("Status",   min_width=10)
-        table.add_column("Findings")
-
-        any_rows = False
+        rows = []
 
         if self.deauth_detector:
             stats  = self.deauth_detector.get_stats()
             bursts = stats.get('bursts_detected', 0)
             c      = self._finding_count_color(bursts)
-            table.add_row(
+            rows.append((
                 "Deauth",
                 self._detector_status_text(stats),
                 f"[{c}]{bursts} burst(s)[/{c}] "
                 f"[dim]({stats.get('active_deauth_sources', 0)} active src)[/dim]",
-            )
-            any_rows = True
+            ))
 
         if self.rogue_ap_detector:
             stats   = self.rogue_ap_detector.get_stats()
             flagged = stats.get('rogue_aps_flagged', 0)
             c       = self._finding_count_color(flagged)
-            table.add_row(
+            rows.append((
                 "Rogue AP",
                 self._detector_status_text(stats),
                 f"[{c}]{flagged} flagged[/{c}] "
                 f"[dim]({stats.get('tracked_bssids', 0)} tracked)[/dim]",
-            )
-            any_rows = True
+            ))
 
         if self.wps_detector:
             stats = self.wps_detector.get_stats()
             vuln  = stats.get('wps_vulnerable_aps', 0)
             c     = self._finding_count_color(vuln)
-            table.add_row(
+            rows.append((
                 "WPS",
                 self._detector_status_text(stats),
                 f"[{c}]{vuln} vulnerable[/{c}] "
                 f"[dim]({stats.get('wps_enabled_aps', 0)} WPS APs)[/dim]",
-            )
-            any_rows = True
+            ))
 
         if self.packet_injection_detector:
             stats  = self.packet_injection_detector.get_stats()
@@ -354,14 +367,27 @@ class TUIDashboard:
             findings = f"[{c}]{total} anomalies[/{c}]"
             if breakdown:
                 findings += f" [dim]({breakdown})[/dim]"
-            table.add_row("Pkt Inject", self._detector_status_text(stats), findings)
-            any_rows = True
+            rows.append(("Pkt Inject", self._detector_status_text(stats), findings))
 
-        if not any_rows:
+        row_budget = self._rows_that_fit(self._DETECTORS_LAYOUT_SIZE)
+        shown      = rows[:row_budget]
+
+        table = Table(show_header=True, header_style="bold white",
+                      box=box.SIMPLE, expand=True)
+        table.add_column("Detector", style="white", min_width=10)
+        table.add_column("Status",   min_width=10)
+        table.add_column("Findings")
+
+        for row in shown:
+            table.add_row(*row)
+
+        if not rows:
             table.add_row("[dim]—[/dim]", "[dim]No detectors configured[/dim]", "")
 
-        return Panel(table, title="[bold white]Detector Status[/bold white]",
-                     border_style="white")
+        label = self._count_label(len(shown), len(rows)) if rows else ""
+        title = f"[bold white]Detector Status ({label})[/bold white]" if label \
+            else "[bold white]Detector Status[/bold white]"
+        return Panel(table, title=title, border_style="white")
 
     def _make_networks_panel(self, max_rows: int = 8) -> Panel:
         audits  = self.db.get_audits(limit=50)
@@ -403,13 +429,17 @@ class TUIDashboard:
 
         return Panel(table, title=title, border_style="blue")
 
-    def _make_encryption_panel(self, max_rows: int = 6) -> Panel:
-        audits = self.db.get_audits(limit=max_rows)
+    def _make_encryption_panel(self) -> Panel:
+        audits = self.db.get_audits(limit=50)
         has_issue = any(
             a.get('wps_enabled') or "WPA3" not in str(a.get('encryption_type', ''))
             for a in audits
         )
         panel_color = "red" if has_issue else "green"
+
+        row_budget = self._rows_that_fit(self._ENCRYPTION_LAYOUT_SIZE)
+        total      = len(audits)
+        shown      = audits[:row_budget]
 
         table = Table(show_header=True, header_style=f"bold {panel_color}",
                       box=box.SIMPLE, expand=True)
@@ -419,7 +449,7 @@ class TUIDashboard:
         table.add_column("WPS",        min_width=5)
         table.add_column("Score",      min_width=6)
 
-        for a in audits:
+        for a in shown:
             ssid  = _sanitize_ssid(a.get('ssid', ''), max_len=14)
             enc   = str(a.get('encryption_type', 'UNKNOWN'))
             wps   = "[red]Yes[/red]" if a.get('wps_enabled') else "[green]No[/green]"
@@ -431,7 +461,8 @@ class TUIDashboard:
                           f"[{enc_c}]{enc}[/{enc_c}]", wps,
                           f"[{sc}]{score}[/{sc}]")
 
-        title = f"[bold {panel_color}]Encryption Audit ({len(audits)})[/bold {panel_color}]"
+        label = self._count_label(len(shown), total)
+        title = f"[bold {panel_color}]Encryption Audit ({label})[/bold {panel_color}]"
         return Panel(table, title=title, border_style=panel_color)
 
     def _make_ai_panel(self) -> Panel:
@@ -509,9 +540,9 @@ class TUIDashboard:
         )
         layout["right"].split_column(
             Layout(name="alerts", minimum_size=10),
-            Layout(name="attacks",    size=8),
-            Layout(name="detectors",  size=8),
-            Layout(name="encryption", size=9),
+            Layout(name="attacks",    size=self._ATTACKS_LAYOUT_SIZE),
+            Layout(name="detectors",  size=self._DETECTORS_LAYOUT_SIZE),
+            Layout(name="encryption", size=self._ENCRYPTION_LAYOUT_SIZE),
             Layout(name="ai",         size=8),
         )
         return layout
