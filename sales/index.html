@@ -727,59 +727,6 @@
     .email-link:hover { text-decoration: underline; }
 
     /* ══════════════════════════════════════════
-       TESTIMONIALS
-    ══════════════════════════════════════════ */
-    .testi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 22px;
-    }
-
-    .testi-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 28px 24px;
-      position: relative;
-      transition: border-color 0.25s;
-    }
-    .testi-card:hover { border-color: rgba(0,255,136,0.18); }
-
-    .testi-stars {
-      color: var(--green);
-      font-size: 0.85rem;
-      letter-spacing: 2px;
-      margin-bottom: 14px;
-    }
-
-    .testi-text {
-      font-size: 0.9rem;
-      color: var(--text);
-      line-height: 1.7;
-      margin-bottom: 22px;
-      font-style: italic;
-    }
-
-    .testi-author {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .testi-avatar {
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      background: var(--green-dark);
-      border: 2px solid rgba(0,255,136,0.25);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
-
-    .testi-name { font-size: 0.88rem; font-weight: 600; color: var(--white); }
-    .testi-role { font-size: 0.75rem; color: var(--muted); }
-
-    /* ══════════════════════════════════════════
        FOOTER
     ══════════════════════════════════════════ */
     footer {
@@ -1163,62 +1110,6 @@
             <div class="pay-step-title" data-en="Receive your license within 24h" data-ar="استلم ترخيصك خلال 24 ساعة">Receive your license within 24h</div>
             <div class="pay-step-desc" data-en="License key and download link delivered to your email." data-ar="مفتاح الترخيص ورابط التنزيل يُسلَّمان إلى بريدك الإلكتروني.">License key and download link delivered to your email.</div>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ TESTIMONIALS ══════════════════════════════════════════ -->
-<div class="section" id="testimonials">
-  <div class="reveal" style="text-align:center; margin-bottom:52px;">
-    <div class="section-label mono" data-en="// TESTIMONIALS" data-ar="// آراء العملاء">// TESTIMONIALS</div>
-    <h2 class="section-title">
-      <span data-en="Trusted by " data-ar="موثوق به من قِبَل ">Trusted by </span>
-      <span class="accent" data-en="Security Professionals" data-ar="محترفي الأمن">Security Professionals</span>
-    </h2>
-  </div>
-
-  <div class="testi-grid">
-    <div class="testi-card reveal reveal-delay-1">
-      <div class="testi-stars">★★★★★</div>
-      <p class="testi-text" data-en="&ldquo;OPTISEC WiFi Monitor caught a rogue AP on our corporate network within minutes of deployment. Exactly what we needed.&rdquo;"
-         data-ar="&ldquo;اكتشف OPTISEC WiFi Monitor نقطة وصول مارقة على شبكتنا المؤسسية في غضون دقائق من النشر. هذا بالضبط ما كنا نحتاجه.&rdquo;">
-        &ldquo;OPTISEC WiFi Monitor caught a rogue AP on our corporate network within minutes of deployment. Exactly what we needed.&rdquo;
-      </p>
-      <div class="testi-author">
-        <div class="testi-avatar">🧑‍💻</div>
-        <div>
-          <div class="testi-name" data-en="Khalid Al-Rashidi" data-ar="خالد الراشدي">Khalid Al-Rashidi</div>
-          <div class="testi-role" data-en="Senior Network Engineer · Riyadh" data-ar="مهندس شبكات أول · الرياض">Senior Network Engineer · Riyadh</div>
-        </div>
-      </div>
-    </div>
-    <div class="testi-card reveal reveal-delay-2">
-      <div class="testi-stars">★★★★★</div>
-      <p class="testi-text" data-en="&ldquo;The SOC Platform drastically cut our MTTD. The threat intelligence correlation alone is worth the price of entry.&rdquo;"
-         data-ar="&ldquo;خفّضت منصة SOC بشكل كبير وقت اكتشافنا للتهديدات. ربط معلومات التهديدات وحده يستحق ثمن الاشتراك.&rdquo;">
-        &ldquo;The SOC Platform drastically cut our MTTD. The threat intelligence correlation alone is worth the price of entry.&rdquo;
-      </p>
-      <div class="testi-author">
-        <div class="testi-avatar">👩‍💼</div>
-        <div>
-          <div class="testi-name" data-en="Sara Ahmed" data-ar="سارة أحمد">Sara Ahmed</div>
-          <div class="testi-role" data-en="SOC Analyst Lead · Dubai" data-ar="قائدة فريق تحليل SOC · دبي">SOC Analyst Lead · Dubai</div>
-        </div>
-      </div>
-    </div>
-    <div class="testi-card reveal reveal-delay-3">
-      <div class="testi-stars">★★★★★</div>
-      <p class="testi-text" data-en="&ldquo;Clean UI, solid detection engine, and lightning-fast support. I recommended OPTISEC to our entire regional security team.&rdquo;"
-         data-ar="&ldquo;واجهة نظيفة ومحرك كشف قوي ودعم سريع كالبرق. أوصيت بـ OPTISEC لفريق الأمن الإقليمي بأكمله.&rdquo;">
-        &ldquo;Clean UI, solid detection engine, and lightning-fast support. I recommended OPTISEC to our entire regional security team.&rdquo;
-      </p>
-      <div class="testi-author">
-        <div class="testi-avatar">🧑‍🔬</div>
-        <div>
-          <div class="testi-name" data-en="Omar Farouk" data-ar="عمر فاروق">Omar Farouk</div>
-          <div class="testi-role" data-en="Cybersecurity Consultant · Cairo" data-ar="استشاري أمن سيبراني · القاهرة">Cybersecurity Consultant · Cairo</div>
         </div>
       </div>
     </div>
