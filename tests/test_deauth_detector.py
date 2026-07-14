@@ -95,6 +95,23 @@ class TestDeauthDetectorBurstDetection(unittest.TestCase):
         self.assertEqual(db.add_attack.call_args[0][0], "DEAUTH_ATTACK")
         self.assertEqual(kwargs["source_mac"], attacker)
 
+    def test_bursts_detected_counter_tracks_alert_mgr_add_calls(self):
+        """get_stats()['bursts_detected'] increments once per burst alert
+        fired (the detector re-alerts on every frame once the burst
+        threshold is crossed, not just once per episode)."""
+        detector, db, alert_mgr = make_detector(
+            {"enabled": True, "burst_count": 10, "burst_window": 10}
+        )
+        attacker = "DE:AD:BE:EF:00:05"
+
+        self.assertEqual(detector.get_stats()["bursts_detected"], 0)
+
+        for _ in range(12):  # frames 10-12 each qualify and re-alert
+            detector._packet_handler(make_deauth(attacker))
+
+        self.assertEqual(detector.get_stats()["bursts_detected"], alert_mgr.add.call_count)
+        self.assertEqual(detector.get_stats()["bursts_detected"], 3)
+
     def test_disassoc_burst_is_also_detected(self):
         detector, db, alert_mgr = make_detector(
             {"enabled": True, "burst_count": 8, "burst_window": 10}

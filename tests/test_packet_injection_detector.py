@@ -138,6 +138,17 @@ class TestPacketInjectionDetectorSequenceAnomaly(unittest.TestCase):
         args, _ = alert_mgr.add.call_args
         self.assertIn("out_of_order_seq", args[3])
 
+    def test_anomaly_counted_by_type_in_get_stats(self):
+        detector, db, alert_mgr = make_detector()
+        source = "AA:BB:CC:DD:EE:11"
+
+        detector._handle_frame(make_data_frame(source, 50, retry=False))
+        detector._handle_frame(make_data_frame(source, 50, retry=False))  # duplicate_seq
+
+        stats = detector.get_stats()
+        self.assertEqual(stats["anomaly_counts"].get("duplicate_seq"), 1)
+        self.assertEqual(stats["total_anomalies"], 1)
+
 
 class TestPacketInjectionDetectorMalformedFrame(unittest.TestCase):
     """Malformed/impossible frame-control combinations and corrupt element

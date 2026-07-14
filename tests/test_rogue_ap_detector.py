@@ -102,6 +102,17 @@ class TestRogueAPDetectorNewUntrustedAP(unittest.TestCase):
         self.assertTrue(any(a["attack_type"] == "ROGUE_AP" and a["bssid"] == rogue_bssid
                             for a in db_attacks))
 
+    def test_flagged_rogue_ap_is_counted_in_get_stats(self):
+        detector, db, alert_mgr = make_detector()
+        ssid = "CorpWiFi2"
+        establish_trust(detector, "AA:BB:CC:DD:EE:07", ssid)
+
+        self.assertEqual(detector.get_stats()["rogue_aps_flagged"], 0)
+
+        detector._evaluate_ap("DE:AD:BE:EF:00:98", ssid, "Unknown", 6, -40)
+
+        self.assertEqual(detector.get_stats()["rogue_aps_flagged"], 1)
+
     def test_new_bssid_reuses_attack_detector_known_set_not_just_own_baseline(self):
         """Even with no persistent baseline yet, a BSSID absent from
         AttackDetector's live known-BSSID set (reused, not duplicated) for an

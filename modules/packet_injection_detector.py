@@ -86,6 +86,9 @@ class PacketInjectionDetector:
         self._anomalies: dict = defaultdict(deque)
         self._lock = threading.Lock()
 
+        # Cumulative anomaly counts by type this session, for TUI/status display.
+        self._anomaly_counts: dict = defaultdict(int)
+
         # Per-source alert throttle, separate from the tracking state above -
         # sequence/replay continuity must be evaluated on every frame, but
         # alert emission is throttled to avoid flooding on a sustained attack.
@@ -336,6 +339,7 @@ class PacketInjectionDetector:
             log = self._anomalies[source]
             for anomaly_type, _ in findings:
                 log.append((now, anomaly_type))
+                self._anomaly_counts[anomaly_type] += 1
             while log and (now - log[0][0]) > window:
                 log.popleft()
             total_count = len(log)
@@ -370,8 +374,11 @@ class PacketInjectionDetector:
     def get_stats(self) -> dict:
         with self._lock:
             tracked_sources = len(self._seq_state)
+            anomaly_counts = dict(self._anomaly_counts)
         return {
             "tracked_sources": tracked_sources,
+            "anomaly_counts": anomaly_counts,
+            "total_anomalies": sum(anomaly_counts.values()),
             "scapy_available": SCAPY_AVAILABLE,
             "enabled": self.is_enabled(),
         }

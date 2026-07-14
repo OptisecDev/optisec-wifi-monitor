@@ -41,6 +41,9 @@ class DeauthDetector:
         self._frame_log: dict = defaultdict(lambda: deque())
         self._lock = threading.Lock()
 
+        # Cumulative count of burst alerts fired this session (for TUI/status display).
+        self._bursts_detected = 0
+
     @property
     def settings(self) -> dict:
         cfg = self.config.get("deauth_detection", {}) or {}
@@ -149,6 +152,9 @@ class DeauthDetector:
                 f"Distinct targets: {distinct_targets}"
             )
 
+            with self._lock:
+                self._bursts_detected += 1
+
             self.alert_mgr.add("DEAUTH_ATTACK", severity, msg, details)
             self.db.add_attack(
                 "DEAUTH_ATTACK", severity,
@@ -159,8 +165,10 @@ class DeauthDetector:
     def get_stats(self) -> dict:
         with self._lock:
             active_sources = len(self._frame_log)
+            bursts_detected = self._bursts_detected
         return {
             "active_deauth_sources": active_sources,
+            "bursts_detected": bursts_detected,
             "scapy_available": SCAPY_AVAILABLE,
             "enabled": self.is_enabled(),
         }

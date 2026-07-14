@@ -72,6 +72,10 @@ class TUIDashboard:
         self.alert_mgr      = components['alert_mgr']
         self.device_monitor = components.get('device_monitor')
         self.attack_detector= components.get('attack_detector')
+        self.deauth_detector= components.get('deauth_detector')
+        self.rogue_ap_detector = components.get('rogue_ap_detector')
+        self.wps_detector   = components.get('wps_detector')
+        self.packet_injection_detector = components.get('packet_injection_detector')
         self.enc_auditor    = components.get('enc_auditor')
         self.ai_engine      = components.get('ai_engine')
         self.pdf_reporter   = components.get('pdf_reporter')
@@ -268,6 +272,81 @@ class TUIDashboard:
         return Panel(table, title="[bold yellow]Attack Log[/bold yellow]",
                      border_style="yellow")
 
+    @staticmethod
+    def _detector_status_text(stats: dict) -> str:
+        if not stats.get('enabled', True):
+            return "[dim]○ Disabled[/dim]"
+        if not stats.get('scapy_available', True):
+            return "[yellow]● Limited[/yellow]"
+        return "[green]● Active[/green]"
+
+    @staticmethod
+    def _finding_count_color(n: int) -> str:
+        if n <= 0:
+            return "green"
+        elif n < 5:
+            return "yellow"
+        return "red"
+
+    def _make_detectors_panel(self) -> Panel:
+        """Live status/summary for the four passive attack detector modules
+        (Deauth, Rogue AP, WPS, Packet Injection) - beyond their alerts already
+        surfacing in the Live Alerts panel, this shows enabled/running state
+        and a per-detector session summary in one place."""
+        table = Table(show_header=True, header_style="bold white",
+                      box=box.SIMPLE, expand=True)
+        table.add_column("Detector", style="white", min_width=10)
+        table.add_column("Status",   min_width=10)
+        table.add_column("Findings")
+
+        if self.deauth_detector:
+            stats  = self.deauth_detector.get_stats()
+            bursts = stats.get('bursts_detected', 0)
+            c      = self._finding_count_color(bursts)
+            table.add_row(
+                "Deauth",
+                self._detector_status_text(stats),
+                f"[{c}]{bursts} burst(s)[/{c}] "
+                f"[dim]({stats.get('active_deauth_sources', 0)} active src)[/dim]",
+            )
+
+        if self.rogue_ap_detector:
+            stats   = self.rogue_ap_detector.get_stats()
+            flagged = stats.get('rogue_aps_flagged', 0)
+            c       = self._finding_count_color(flagged)
+            table.add_row(
+                "Rogue AP",
+                self._detector_status_text(stats),
+                f"[{c}]{flagged} flagged[/{c}] "
+                f"[dim]({stats.get('tracked_bssids', 0)} tracked)[/dim]",
+            )
+
+        if self.wps_detector:
+            stats = self.wps_detector.get_stats()
+            vuln  = stats.get('wps_vulnerable_aps', 0)
+            c     = self._finding_count_color(vuln)
+            table.add_row(
+                "WPS",
+                self._detector_status_text(stats),
+                f"[{c}]{vuln} vulnerable[/{c}] "
+                f"[dim]({stats.get('wps_enabled_aps', 0)} WPS APs)[/dim]",
+            )
+
+        if self.packet_injection_detector:
+            stats  = self.packet_injection_detector.get_stats()
+            total  = stats.get('total_anomalies', 0)
+            c      = self._finding_count_color(total)
+            counts = stats.get('anomaly_counts', {}) or {}
+            top    = sorted(counts.items(), key=lambda kv: -kv[1])[:2]
+            breakdown = ' '.join(f"{k}:{v}" for k, v in top)
+            findings = f"[{c}]{total} anomalies[/{c}]"
+            if breakdown:
+                findings += f" [dim]({breakdown})[/dim]"
+            table.add_row("Pkt Inject", self._detector_status_text(stats), findings)
+
+        return Panel(table, title="[bold white]Detector Status[/bold white]",
+                     border_style="white")
+
     def _make_networks_panel(self, max_rows: int = 8) -> Panel:
         audits  = self.db.get_audits(limit=50)
         n       = len(audits)
@@ -415,6 +494,7 @@ class TUIDashboard:
         layout["right"].split_column(
             Layout(name="alerts"),
             Layout(name="attacks",    size=9),
+            Layout(name="detectors",  size=9),
             Layout(name="encryption", size=10),
             Layout(name="ai",         size=10),
         )
@@ -426,6 +506,7 @@ class TUIDashboard:
         layout["devices"].update(self._make_devices_panel())
         layout["alerts"].update(self._make_alerts_panel())
         layout["attacks"].update(self._make_attacks_panel())
+        layout["detectors"].update(self._make_detectors_panel())
         layout["networks"].update(self._make_networks_panel())
         layout["encryption"].update(self._make_encryption_panel())
         layout["ai"].update(self._make_ai_panel())
