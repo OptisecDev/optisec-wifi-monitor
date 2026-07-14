@@ -289,7 +289,12 @@ WiFi Adapter (monitor mode)
 This software is **not open source**. Purchase a license at:
 👉 **[ahssanali84syber-boop.github.io/optisec-wifi-monitor](https://ahssanali84syber-boop.github.io/optisec-wifi-monitor)**
 
-- ✅ One machine per license
+On first run, the app issues a signed license key (`OPS-XXXX-XXXX-XXXX-XXXX`)
+bound to the machine it's installed on and stores it at `~/.optisec/license.key`.
+The key is cryptographically verified on every launch — a hand-edited or
+copied-to-another-machine file is rejected rather than accepted.
+
+- ✅ One machine per license, enforced at every launch
 - ✅ Lifetime updates (v1.x)
 - ✅ 7-day money-back guarantee
 - ❌ No redistribution
