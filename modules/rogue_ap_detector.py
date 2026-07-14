@@ -55,6 +55,9 @@ class RogueAPDetector:
         self._last_eval: dict = {}
         self._eval_lock = threading.Lock()
 
+        # Distinct BSSIDs flagged as rogue this session (for TUI/status display).
+        self._flagged_bssids: set = set()
+
     @property
     def settings(self) -> dict:
         cfg = self.config.get("rogue_ap_detection", {}) or {}
@@ -229,6 +232,9 @@ class RogueAPDetector:
             f"Channel: {channel if channel is not None else 'unknown'} | "
             f"Known trusted BSSID(s): {known_desc}"
         )
+        with self._eval_lock:
+            self._flagged_bssids.add(bssid)
+
         self.alert_mgr.add("ROGUE_AP", "HIGH", msg, details)
         self.db.add_attack("ROGUE_AP", "HIGH", bssid=bssid, ssid=ssid, details=details)
 
@@ -246,14 +252,19 @@ class RogueAPDetector:
             f"SSID: {ssid} | BSSID: {bssid} | Baseline avg signal: {baseline_avg:.1f} dBm | "
             f"Current signal: {signal} dBm | Deviation: {deviation:.1f} dB"
         )
+        with self._eval_lock:
+            self._flagged_bssids.add(bssid)
+
         self.alert_mgr.add("ROGUE_AP", severity, msg, details)
         self.db.add_attack("ROGUE_AP", severity, bssid=bssid, ssid=ssid, details=details)
 
     def get_stats(self) -> dict:
         with self._eval_lock:
             tracked = len(self._last_eval)
+            flagged = len(self._flagged_bssids)
         return {
             "tracked_bssids": tracked,
+            "rogue_aps_flagged": flagged,
             "scapy_available": SCAPY_AVAILABLE,
             "enabled": self.is_enabled(),
         }

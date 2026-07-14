@@ -84,6 +84,11 @@ class WPSDetector:
         self._last_eval: dict = {}
         self._eval_lock = threading.Lock()
 
+        # Distinct BSSIDs found with WPS enabled this session, and the subset
+        # that are PIN-capable (the actually vulnerable ones), for TUI/status display.
+        self._wps_enabled_bssids: set = set()
+        self._vulnerable_bssids: set = set()
+
     @property
     def settings(self) -> dict:
         cfg = self.config.get("wps_detection", {}) or {}
@@ -280,6 +285,11 @@ class WPSDetector:
 
         details = " | ".join(details_parts)
 
+        with self._eval_lock:
+            self._wps_enabled_bssids.add(bssid)
+            if pin_capable:
+                self._vulnerable_bssids.add(bssid)
+
         self.alert_mgr.add("WPS_VULNERABLE", severity, msg, details)
         self.db.add_attack("WPS_VULNERABLE", severity, bssid=bssid, ssid=ssid, details=details)
 
@@ -296,8 +306,12 @@ class WPSDetector:
     def get_stats(self) -> dict:
         with self._eval_lock:
             tracked = len(self._last_eval)
+            wps_enabled_aps = len(self._wps_enabled_bssids)
+            wps_vulnerable_aps = len(self._vulnerable_bssids)
         return {
             "tracked_bssids": tracked,
+            "wps_enabled_aps": wps_enabled_aps,
+            "wps_vulnerable_aps": wps_vulnerable_aps,
             "scapy_available": SCAPY_AVAILABLE,
             "enabled": self.is_enabled(),
         }

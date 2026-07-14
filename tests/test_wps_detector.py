@@ -144,6 +144,30 @@ class TestWPSDetectorPushButtonOnly(unittest.TestCase):
         call_args, _ = db.add_attack.call_args
         self.assertEqual(call_args[1], "LOW")
 
+        # Push-button-only is WPS-enabled but not PIN-vulnerable.
+        stats = detector.get_stats()
+        self.assertEqual(stats["wps_enabled_aps"], 1)
+        self.assertEqual(stats["wps_vulnerable_aps"], 0)
+
+
+class TestWPSDetectorGetStats(unittest.TestCase):
+    """get_stats() must distinguish WPS-enabled APs from PIN-vulnerable ones."""
+
+    def test_pin_capable_ap_counts_as_both_enabled_and_vulnerable(self):
+        detector, db, alert_mgr = make_detector()
+        bssid = "AA:BB:CC:DD:EE:07"
+        wps_ie = _wps_ie_bytes(config_methods=WPS_CONFIG_DISPLAY)
+        pkt = make_beacon(bssid, ssid="PinNet2", wps_ie=wps_ie)
+
+        self.assertEqual(detector.get_stats()["wps_enabled_aps"], 0)
+        self.assertEqual(detector.get_stats()["wps_vulnerable_aps"], 0)
+
+        detector._handle_frame(pkt)
+
+        stats = detector.get_stats()
+        self.assertEqual(stats["wps_enabled_aps"], 1)
+        self.assertEqual(stats["wps_vulnerable_aps"], 1)
+
 
 class TestWPSDetectorDisabled(unittest.TestCase):
     """Detector disabled via config must be a complete no-op."""
