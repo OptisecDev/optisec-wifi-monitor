@@ -4,7 +4,9 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+
+import requests
 
 LICENSE_PATH = os.path.expanduser("~/.optisec/license.key")
 MACHINE_ID_PATH = "/etc/machine-id"
@@ -22,6 +24,16 @@ _APP_SECRET = bytes.fromhex(
 
 _VERSION = "2.0"
 
+# Periodic server-side re-verification. Best-effort supplement to the local
+# HMAC check, not a replacement for it: refresh_license_status() is the only
+# thing that talks to the network, and is_valid never calls it - callers are
+# expected to invoke refresh_license_status() from a background thread/timer
+# (or once at startup), matching the threading.Thread(daemon=True) pattern
+# used elsewhere in this codebase.
+_SERVER_VERIFY_URL = "https://license-server-pviu.onrender.com/verify"
+_SERVER_CHECK_INTERVAL = timedelta(hours=48)
+_SERVER_TIMEOUT_SECONDS = 5
+
 
 class LicenseManager:
     def __init__(self):
@@ -29,6 +41,8 @@ class LicenseManager:
         self.key        = ""
         self.issued     = ""
         self.machine_id = ""
+        self.revoked    = False
+        self.last_check = ""
         self._loaded    = False
 
     # ── Public ────────────────────────────────────────────────────────────
@@ -46,11 +60,17 @@ class LicenseManager:
 
     @property
     def is_valid(self) -> bool:
+        """Synchronous, instant, and local-only: reads cached state, never
+        touches the network. Call refresh_license_status() separately (e.g.
+        from a background timer or at startup) to keep that cache current.
+        """
         if not (self.name and self.key and self.machine_id):
             return False
         if self.machine_id != self._current_machine_id():
             return False
-        return hmac.compare_digest(self._sign(self.name, self.machine_id), self.key)
+        if not hmac.compare_digest(self._sign(self.name, self.machine_id), self.key):
+            return False
+        return not self.revoked
 
     @property
     def display(self) -> str:
@@ -78,6 +98,48 @@ class LicenseManager:
         self.key        = self._sign(self.name, self.machine_id)
         self.issued     = datetime.now().strftime("%Y-%m-%d")
 
+    def _server_check_due(self) -> bool:
+        if not self.last_check:
+            return True
+        try:
+            last = datetime.fromisoformat(self.last_check)
+        except ValueError:
+            return True
+        return datetime.now() - last >= _SERVER_CHECK_INTERVAL
+
+    def refresh_license_status(self) -> None:
+        """Re-verify against the license server, best-effort.
+
+        Blocking (network I/O) - call from a background thread/timer or at
+        app startup, never from is_valid. Self-throttles to
+        _SERVER_CHECK_INTERVAL, so it's safe to call this on every tick of a
+        background loop. Never raises: offline/unreachable/malformed
+        responses leave the cached (revoked, last_check) state untouched, so
+        is_valid keeps falling back to the local HMAC result. Only an
+        explicit revoked=true response is persisted and overrides the local
+        HMAC result.
+        """
+        if not self._server_check_due():
+            return
+        try:
+            resp = requests.post(
+                _SERVER_VERIFY_URL,
+                json={
+                    "name":       self.name,
+                    "key":        self.key,
+                    "machine_id": self.machine_id,
+                },
+                timeout=_SERVER_TIMEOUT_SECONDS,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (requests.RequestException, ValueError):
+            return
+
+        self.revoked    = bool(data.get("revoked", False))
+        self.last_check = datetime.now().isoformat()
+        self._save()
+
     def _save(self):
         license_dir = os.path.dirname(LICENSE_PATH)
         os.makedirs(license_dir, exist_ok=True)
@@ -89,6 +151,8 @@ class LicenseManager:
                 "issued":     self.issued,
                 "machine_id": self.machine_id,
                 "version":    _VERSION,
+                "revoked":    self.revoked,
+                "last_check": self.last_check,
             }, f, indent=4)
         os.chmod(LICENSE_PATH, 0o600)
 
@@ -106,6 +170,8 @@ class LicenseManager:
         self.issued     = data.get("issued", "")
         self.machine_id = data.get("machine_id", "")
         self.key        = data.get("key", "")
+        self.revoked    = bool(data.get("revoked", False))
+        self.last_check = data.get("last_check", "")
 
         if data.get("version") != _VERSION and self.name:
             # One-time migration from the pre-signing (v1.0) format: re-issue
