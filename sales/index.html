@@ -780,75 +780,6 @@
     .testi-role { font-size: 0.75rem; color: var(--muted); }
 
     /* ══════════════════════════════════════════
-       LICENSE VERIFIER
-    ══════════════════════════════════════════ */
-    .verifier-box {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      padding: 54px 48px;
-      max-width: 640px;
-      margin: 0 auto;
-      text-align: center;
-    }
-
-    .verifier-icon { font-size: 2.5rem; margin-bottom: 18px; }
-
-    .verifier-input-wrap {
-      position: relative;
-      margin: 28px 0 16px;
-    }
-
-    .verifier-input {
-      width: 100%;
-      padding: 14px 20px;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--green);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.95rem;
-      letter-spacing: 1px;
-      text-align: center;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      outline: none;
-    }
-    .verifier-input::placeholder { color: var(--muted); letter-spacing: 0; }
-    .verifier-input:focus { border-color: rgba(0,255,136,0.4); box-shadow: 0 0 0 3px rgba(0,255,136,0.08); }
-    .verifier-input.valid   { border-color: var(--green); }
-    .verifier-input.invalid { border-color: var(--red); }
-
-    .verifier-msg {
-      min-height: 22px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-    .verifier-msg.ok  { color: var(--green); }
-    .verifier-msg.err { color: var(--red); }
-
-    .btn-verify {
-      padding: 13px 36px;
-      background: linear-gradient(135deg, var(--green), var(--green-dim));
-      color: #000;
-      font-family: inherit;
-      font-weight: 700;
-      font-size: 0.92rem;
-      border: none;
-      border-radius: 9px;
-      cursor: pointer;
-      transition: all 0.25s;
-    }
-    .btn-verify:hover { box-shadow: 0 0 28px rgba(0,255,136,0.35); transform: translateY(-1px); }
-
-    .verifier-hint {
-      margin-top: 14px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    /* ══════════════════════════════════════════
        FOOTER
     ══════════════════════════════════════════ */
     footer {
@@ -889,7 +820,6 @@
     ══════════════════════════════════════════ */
     @media (max-width: 640px) {
       .payment-wrap { padding: 32px 20px; }
-      .verifier-box { padding: 36px 20px; }
       .stats-bar { gap: 28px; }
     }
   </style>
@@ -903,7 +833,6 @@
     <a href="#products"   data-en="Products"    data-ar="المنتجات">Products</a>
     <a href="#features"   data-en="Features"    data-ar="المميزات">Features</a>
     <a href="#payment"    data-en="Payment"     data-ar="الدفع">Payment</a>
-    <a href="#verify"     data-en="Verify"      data-ar="التحقق">Verify</a>
   </div>
   <div class="nav-right">
     <button class="btn-lang" id="langBtn" onclick="toggleLang()">العربية</button>
@@ -1296,37 +1225,6 @@
   </div>
 </div>
 
-<!-- ══ LICENSE VERIFIER ══════════════════════════════════════════ -->
-<div style="background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:100px 24px;" id="verify">
-  <div class="verifier-box reveal">
-    <div class="verifier-icon">🔑</div>
-    <div class="section-label mono" style="text-align:center;" data-en="// LICENSE VERIFIER" data-ar="// التحقق من الترخيص">// LICENSE VERIFIER</div>
-    <h2 class="section-title" style="margin-top:10px;" data-en="Verify Your License Key" data-ar="تحقق من مفتاح الترخيص">Verify Your License Key</h2>
-    <p style="font-size:0.9rem; color:var(--muted); margin-top:8px;"
-       data-en="Enter your OPTISEC license key to confirm it's valid."
-       data-ar="أدخل مفتاح ترخيص OPTISEC للتأكد من صحته.">
-      Enter your OPTISEC license key to confirm it's valid.
-    </p>
-
-    <div class="verifier-input-wrap">
-      <input
-        class="verifier-input mono"
-        id="licenseInput"
-        type="text"
-        placeholder="OPS-XXXX-XXXX-XXXX-XXXX"
-        maxlength="24"
-        oninput="onLicenseInput(this)"
-      />
-    </div>
-
-    <div class="verifier-msg" id="licenseMsg"></div>
-
-    <button class="btn-verify" onclick="verifyLicense()" data-en="Verify License" data-ar="تحقق من الترخيص">Verify License</button>
-
-    <p class="verifier-hint" data-en="Format: OPS-XXXX-XXXX-XXXX-XXXX" data-ar="الصيغة: OPS-XXXX-XXXX-XXXX-XXXX">Format: OPS-XXXX-XXXX-XXXX-XXXX</p>
-  </div>
-</div>
-
 <!-- ══ FOOTER ══════════════════════════════════════════ -->
 <footer>
   <div class="footer-logo">OPTI<span>SEC</span></div>
@@ -1334,7 +1232,6 @@
     <a href="#products" data-en="Products"    data-ar="المنتجات">Products</a>
     <a href="#features" data-en="Features"    data-ar="المميزات">Features</a>
     <a href="#payment"  data-en="Payment"     data-ar="الدفع">Payment</a>
-    <a href="#verify"   data-en="Verify"      data-ar="التحقق">Verify</a>
     <a href="https://github.com/ahssanali84syber-boop" target="_blank" rel="noopener">GitHub</a>
     <a href="mailto:ahssanali84.syber@gmail.com" data-en="Contact" data-ar="تواصل معنا">Contact</a>
   </div>
@@ -1374,41 +1271,6 @@ function copyAddr(id, btn) {
     }, 2000);
   });
 }
-
-/* ── License verifier ─────────────────────────── */
-const LICENSE_RE = /^OPS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-
-function onLicenseInput(input) {
-  input.value = input.value.toUpperCase();
-  input.classList.remove('valid', 'invalid');
-  document.getElementById('licenseMsg').textContent = '';
-  document.getElementById('licenseMsg').className   = 'verifier-msg';
-}
-
-function verifyLicense() {
-  const input = document.getElementById('licenseInput');
-  const msg   = document.getElementById('licenseMsg');
-  const key   = input.value.trim();
-
-  if (LICENSE_RE.test(key)) {
-    input.classList.add('valid');
-    msg.className   = 'verifier-msg ok';
-    msg.textContent = lang === 'ar'
-      ? '✓ مفتاح ترخيص صحيح'
-      : '✓ Valid license key format';
-  } else {
-    input.classList.add('invalid');
-    msg.className   = 'verifier-msg err';
-    msg.textContent = lang === 'ar'
-      ? '✗ صيغة غير صحيحة — يجب أن تكون: OPS-XXXX-XXXX-XXXX-XXXX'
-      : '✗ Invalid format — expected: OPS-XXXX-XXXX-XXXX-XXXX';
-  }
-}
-
-/* allow Enter key */
-document.getElementById('licenseInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') verifyLicense();
-});
 
 /* ── Scroll reveal ────────────────────────────── */
 const observer = new IntersectionObserver(entries => {
