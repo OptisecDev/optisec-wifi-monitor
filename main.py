@@ -78,6 +78,9 @@ def init_license() -> LicenseManager:
     )
     if lic.is_valid:
         console.print(f"[green]✓  {lic.display}[/green]")
+    threading.Thread(
+        target=lic.refresh_license_status, name='LicenseRefresh', daemon=True
+    ).start()
     return lic
 
 
