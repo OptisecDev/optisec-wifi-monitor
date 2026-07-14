@@ -74,6 +74,9 @@ class TUIDashboard:
     _DETECTORS_LAYOUT_SIZE  = 8
     _ENCRYPTION_LAYOUT_SIZE = 9
     _NETWORKS_LAYOUT_SIZE   = 12
+    _STATS_LAYOUT_SIZE      = 8
+    _HEADER_SIZE            = 3
+    _FOOTER_SIZE            = 3
     _PANEL_ROW_OVERHEAD     = 5  # top border + top pad + header + rule + bottom border
 
     @classmethod
@@ -83,6 +86,14 @@ class TUIDashboard:
     @staticmethod
     def _count_label(shown: int, total: int) -> str:
         return f"{shown}/{total}" if shown < total else str(total)
+
+    def _devices_layout_size(self) -> int:
+        """Devices has no fixed layout size (see _build_layout) — it takes
+        whatever's left in the left column after header/footer/stats/networks,
+        so its row budget has to be computed from live terminal height instead
+        of a constant like the other panels."""
+        body_height = max(0, self.console.size.height - self._HEADER_SIZE - self._FOOTER_SIZE)
+        return max(0, body_height - self._STATS_LAYOUT_SIZE - self._NETWORKS_LAYOUT_SIZE)
 
     def __init__(self, components: dict):
         self.db             = components['db']
@@ -198,9 +209,12 @@ class TUIDashboard:
         table.add_row("Networks", f"[green]{stats['audits']}[/green]")
         return Panel(table, title="[bold blue]Stats[/bold blue]", border_style="blue")
 
-    def _make_devices_panel(self, max_rows: int = 10) -> Panel:
-        devices   = self.db.get_all_devices()[:max_rows]
-        whitelist = set(m.upper() for m in self.config.whitelist)
+    def _make_devices_panel(self) -> Panel:
+        all_devices = self.db.get_all_devices()
+        total       = len(all_devices)
+        row_budget  = self._rows_that_fit(self._devices_layout_size())
+        devices     = all_devices[:row_budget]
+        whitelist   = set(m.upper() for m in self.config.whitelist)
 
         alerted_macs: set = set()
         feed = self._alert_feed or self.db.get_alerts(limit=50)
@@ -235,7 +249,8 @@ class TUIDashboard:
             last = last[11:16] if len(last) > 11 else last[:5]
             table.add_row(mac, ip, vendor, status, last)
 
-        return Panel(table, title=f"[bold cyan]Devices ({len(devices)})[/bold cyan]",
+        label = self._count_label(len(devices), total)
+        return Panel(table, title=f"[bold cyan]Devices ({label})[/bold cyan]",
                      border_style="cyan")
 
     def _make_alerts_panel(self, max_rows: int = 10) -> Panel:
@@ -530,16 +545,16 @@ class TUIDashboard:
     def _build_layout(self) -> Layout:
         layout = Layout()
         layout.split_column(
-            Layout(name="header", size=3),
+            Layout(name="header", size=self._HEADER_SIZE),
             Layout(name="body"),
-            Layout(name="footer", size=3),
+            Layout(name="footer", size=self._FOOTER_SIZE),
         )
         layout["body"].split_row(
             Layout(name="left"),
             Layout(name="right"),
         )
         layout["left"].split_column(
-            Layout(name="stats",    size=8),
+            Layout(name="stats",    size=self._STATS_LAYOUT_SIZE),
             Layout(name="devices"),
             Layout(name="networks", size=self._NETWORKS_LAYOUT_SIZE),
         )
