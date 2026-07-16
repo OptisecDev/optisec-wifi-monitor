@@ -19,9 +19,9 @@
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.0-00ff88?style=for-the-badge)](https://github.com/ahssanali84syber-boop/optisec-wifi-monitor)
 [![AI](https://img.shields.io/badge/AI-Groq_llama--3.3--70b-ff6b35?style=for-the-badge)](https://groq.com)
-[![Price](https://img.shields.io/badge/License-$299_one--time-gold?style=for-the-badge)](https://ahssanali84syber-boop.github.io/optisec-wifi-monitor)
+[![Price](https://img.shields.io/badge/License-$299_one--time-gold?style=for-the-badge)](https://optisecdev.github.io/optisec-wifi-monitor/)
 
-[🌐 Sales Page](https://ahssanali84syber-boop.github.io/optisec-wifi-monitor) · [📧 Support](mailto:ahssanali84.syber@gmail.com) · [🐛 Issues](https://github.com/ahssanali84syber-boop/optisec-wifi-monitor/issues)
+[🌐 Sales Page](https://optisecdev.github.io/optisec-wifi-monitor/) · [📧 Support](mailto:ahssanali84.syber@gmail.com) · [🐛 Issues](https://github.com/ahssanali84syber-boop/optisec-wifi-monitor/issues)
 
 </div>
 
@@ -287,7 +287,7 @@ WiFi Adapter (monitor mode)
 **Proprietary — $299 one-time license**
 
 This software is **not open source**. Purchase a license at:
-👉 **[ahssanali84syber-boop.github.io/optisec-wifi-monitor](https://ahssanali84syber-boop.github.io/optisec-wifi-monitor)**
+👉 **[optisecdev.github.io/optisec-wifi-monitor](https://optisecdev.github.io/optisec-wifi-monitor/)**
 
 On first run, the app issues a signed license key (`OPS-XXXX-XXXX-XXXX-XXXX`)
 bound to the machine it's installed on and stores it at `~/.optisec/license.key`.
@@ -306,7 +306,7 @@ copied-to-another-machine file is rejected rather than accepted.
 
 **Built for security professionals. Authorized defense use only.**
 
-[![Buy License](https://img.shields.io/badge/Buy_License-$299_One--Time-00ff88?style=for-the-badge)](https://ahssanali84syber-boop.github.io/optisec-wifi-monitor)
+[![Buy License](https://img.shields.io/badge/Buy_License-$299_One--Time-00ff88?style=for-the-badge)](https://optisecdev.github.io/optisec-wifi-monitor/)
 [![Email Support](https://img.shields.io/badge/Email-Support-blue?style=for-the-badge&logo=gmail)](mailto:ahssanali84.syber@gmail.com)
 
 </div>
