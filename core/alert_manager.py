@@ -1,6 +1,7 @@
 """Alert manager - handles alert creation, deduplication, and notification."""
 
 import threading
+import csv
 from datetime import datetime, timedelta
 from collections import deque
 from rich.console import Console
@@ -16,11 +17,11 @@ SEVERITY_COLORS = {
 }
 
 SEVERITY_ICONS = {
-    "CRITICAL": "🚨",
-    "HIGH": "⛔",
-    "MEDIUM": "⚠",
-    "LOW": "ℹ",
-    "INFO": "•",
+    "CRITICAL": "ð¨",
+    "HIGH": "â",
+    "MEDIUM": "â ",
+    "LOW": "â¹",
+    "INFO": "â¢",
 }
 
 
@@ -59,7 +60,7 @@ class AlertManager:
         }
 
         if print_to_console:
-            icon = SEVERITY_ICONS.get(severity, "•")
+            icon = SEVERITY_ICONS.get(severity, "â¢")
             color = SEVERITY_COLORS.get(severity, "white")
             ts = now.strftime("%H:%M:%S")
             console.print(
@@ -88,3 +89,21 @@ class AlertManager:
 
     def info(self, alert_type: str, message: str, details: str = None):
         return self.add(alert_type, "INFO", message, details)
+
+    def export_alerts_to_csv(self, filepath: str):
+        """Export all alerts from the database to a CSV file.
+
+        Args:
+            filepath: Path to the CSV file to create/replace.
+        """
+        alerts = self.db.get_alerts(limit=10000)
+
+        fields = ['id', 'alert_type', 'severity', 'message', 'details', 'timestamp', 'resolved']
+
+        with open(filepath, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
+            writer.writeheader()
+            for alert in alerts:
+                writer.writerow(alert)
+
+        return filepath
