@@ -100,11 +100,13 @@ class EncryptionAuditor:
         # without this lock the same BSSID can pass the "not seen yet" check on
         # both threads before either adds it, producing duplicate audit rows/alerts.
         self._seen_lock = threading.Lock()
+        self.threads: list = []  # joined by stop_all_components
 
     def start(self):
         self._running = True
         if SCAPY_AVAILABLE:
             t = threading.Thread(target=self._sniff_beacons, daemon=True)
+            self.threads.append(t)
             t.start()
 
         # Also use iwlist scan periodically as supplement

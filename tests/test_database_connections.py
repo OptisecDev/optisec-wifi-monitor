@@ -1,6 +1,7 @@
 """Every sqlite connection is closed deterministically: Database.close() and
 the main.py code paths that own a Database."""
 
+import logging
 import os
 import shutil
 import sqlite3
@@ -181,6 +182,154 @@ class TestMainClosesDatabase(DbTestCase):
 
                 self.assertIsInstance(result.exception, RuntimeError)
                 self.assertClosed(conn)
+
+
+class GatedThread(threading.Thread):
+    """A worker whose shutdown write can only proceed once someone join()s
+    it - so a caller that closes the database without joining is caught
+    deterministically, with no sleeps."""
+
+    def __init__(self, gate, **kwargs):
+        super().__init__(daemon=True, **kwargs)
+        self.gate = gate
+
+    def join(self, timeout=None):
+        self.gate.set()
+        super().join(timeout)
+
+
+class FakeWriterComponent:
+    """Simulated detector: a main loop thread (as from start_monitoring_threads)
+    plus an internal sub-thread (exposed via .threads), both of which write
+    to the database while running and once more while shutting down."""
+
+    def __init__(self, db):
+        self.db = db
+        self._stop = threading.Event()
+        self.started = threading.Barrier(3)
+        self.gate = threading.Event()
+        self.loop_thread = GatedThread(self.gate, target=self._run, args=("loop",), name="FakeLoop")
+        self.threads = [GatedThread(self.gate, target=self._run, args=("sub",), name="FakeSub")]
+
+    def start(self):
+        self.loop_thread.start()
+        self.threads[0].start()
+        self.started.wait(timeout=10)
+
+    def _run(self, who):
+        self.db.add_alert("TEST", "LOW", f"{who} running")
+        self.started.wait(timeout=10)
+        self._stop.wait()
+        self.gate.wait(timeout=10)
+        self.db.add_alert("TEST", "LOW", f"{who} flushed on shutdown")
+
+    def stop(self):
+        self._stop.set()
+
+
+class TestShutdownOrder(DbTestCase):
+
+    def setUp(self):
+        super().setUp()
+        import main
+        self.main = main
+        self.thread_errors = []
+        patcher = patch("threading.excepthook", self.thread_errors.append)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _raw_messages(self):
+        conn = sqlite3.connect(self.db.db_path)
+        try:
+            return sorted(r[0] for r in conn.execute("SELECT message FROM alerts"))
+        finally:
+            conn.close()
+
+    def test_components_are_joined_before_database_is_closed(self):
+        comp = FakeWriterComponent(self.db)
+        comp.start()
+        components = {"db": self.db, "ai_engine": comp, "threads": [comp.loop_thread]}
+        all_threads = [comp.loop_thread] + comp.threads
+        alive_at_close = []
+        real_close = self.db.close
+
+        def recording_close(*args, **kwargs):
+            alive_at_close.extend(t.name for t in all_threads if t.is_alive())
+            real_close(*args, **kwargs)
+
+        with patch.object(self.db, "close", side_effect=recording_close):
+            self.main.stop_all_components(components, join_timeout=10)
+        comp.gate.set()  # lets the workers finish if stop_all_components never joined
+        for t in all_threads:
+            t.join(timeout=10)
+
+        self.assertEqual(alive_at_close, [])
+        self.assertEqual(self.thread_errors, [])
+        self.assertEqual(self._raw_messages(), [
+            "loop flushed on shutdown", "loop running",
+            "sub flushed on shutdown", "sub running",
+        ])
+
+    def _straggler(self, release, results):
+        def run():
+            release.wait(timeout=10)
+            results.append(self.db.add_alert("TEST", "LOW", "late"))
+            results.append(self.db.add_attack("DEAUTH", "HIGH"))
+            results.append(self.db.upsert_device("AA:AA:AA:AA:AA:01"))
+        return threading.Thread(target=run, daemon=True, name="Straggler")
+
+    def test_untracked_write_after_shutdown_close_is_dropped_with_debug_log(self):
+        """e.g. a web request or TUI report thread still finishing at exit."""
+        self.db.add_alert("TEST", "LOW", "before")
+        release, results = threading.Event(), []
+        straggler = self._straggler(release, results)
+        straggler.start()
+
+        self.main.stop_all_components({"db": self.db})
+        with self.assertLogs("core.database", level="DEBUG") as logs:
+            release.set()
+            straggler.join(timeout=10)
+
+        self.assertFalse(straggler.is_alive())
+        self.assertEqual(self.thread_errors, [])
+        self.assertEqual(results, [None, None, False])
+        self.assertEqual(len(logs.records), 3)
+        self.assertTrue(all(r.levelno == logging.DEBUG for r in logs.records))
+        self.assertIn("dropped late add_alert()", logs.output[0])
+        self.assertEqual(self._raw_messages(), ["before"])
+
+    def test_tracked_thread_past_join_deadline_does_not_block_or_raise(self):
+        release, results = threading.Event(), []
+        straggler = self._straggler(release, results)
+        straggler.start()
+        components = {"db": self.db, "threads": [straggler]}
+
+        with self.assertLogs("main", level="DEBUG") as main_logs:
+            self.main.stop_all_components(components, join_timeout=0.01)
+        release.set()
+        straggler.join(timeout=10)
+
+        self.assertIn("Straggler", main_logs.output[0])
+        self.assertEqual(self.thread_errors, [])
+        self.assertEqual(results, [None, None, False])
+
+    def test_writes_after_a_plain_close_still_raise(self):
+        self.db.close()
+        for write in (lambda: self.db.add_alert("TEST", "LOW", "x"),
+                      lambda: self.db.add_attack("DEAUTH", "HIGH"),
+                      lambda: self.db.upsert_device("AA:AA:AA:AA:AA:01"),
+                      lambda: self.db.upsert_bssid_baseline("11:22:33:44:55:66"),
+                      lambda: self.db.upsert_audit("11:22:33:44:55:66", "N", "WPA2", False, True, 80),
+                      lambda: self.db.add_report("PERIODIC", "r"),
+                      lambda: self.db.resolve_alert(1),
+                      lambda: self.db.set_whitelist("AA:AA:AA:AA:AA:01", True)):
+            with self.assertRaises(sqlite3.ProgrammingError):
+                write()
+
+    def test_reads_after_shutdown_close_still_raise(self):
+        self.main.stop_all_components({"db": self.db})
+        with self.assertRaises(sqlite3.ProgrammingError):
+            self.db.get_alerts()
 
 
 if __name__ == "__main__":

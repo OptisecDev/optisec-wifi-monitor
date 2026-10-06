@@ -26,6 +26,7 @@ class TelegramNotifier:
         self._medium_queue: deque = deque()
         self._lock = threading.Lock()
         self._running = False
+        self.threads: list = []  # joined by stop_all_components
 
     @property
     def _token(self) -> str:
@@ -42,7 +43,9 @@ class TelegramNotifier:
         if not self.is_configured():
             return
         self._running = True
-        threading.Thread(target=self._batch_loop, daemon=True).start()
+        t = threading.Thread(target=self._batch_loop, daemon=True)
+        self.threads.append(t)
+        t.start()
 
     def stop(self):
         self._running = False

@@ -292,5 +292,60 @@ class TestInsertsUseExplicitLocalTime(TimestampTestCase):
                          ["fifth", "fourth", "third", "second", "first"])
 
 
+class TestTimeWindowsUseLocalTime(TimestampTestCase):
+    """Time-window queries must compare against local time, matching the
+    local-time rows written by _now_ts().
+
+    Runs in a fixed UTC+3 zone. The clock is frozen at the real local time
+    (captured once) so that a UTC cutoff - SQLite's datetime('now', ...) -
+    would land 27 hours back and wrongly include the 25-hour-old alert on
+    any machine, including a UTC one."""
+
+    def setUp(self):
+        super().setUp()
+        if not hasattr(time, "tzset"):
+            self.skipTest("time.tzset() not available on this platform")
+        old_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "UTC-3"  # POSIX sign convention: 3 hours ahead of UTC
+        time.tzset()
+        self.addCleanup(self._restore_tz, old_tz)
+        self.frozen = datetime.now()
+
+    @staticmethod
+    def _restore_tz(old_tz):
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+        time.tzset()
+
+    def _clock(self, at):
+        return patch("core.database._local_now", return_value=at)
+
+    def _db_with_alerts(self, *hours_ago):
+        db = self.open_db()
+        for h in hours_ago:
+            with self._clock(self.frozen - timedelta(hours=h)):
+                db.add_alert("DEAUTH", "HIGH", f"{h}h ago")
+        return db
+
+    def test_get_alerts_by_hour_includes_1h_and_excludes_25h_old_alert(self):
+        db = self._db_with_alerts(1, 25)
+
+        with self._clock(self.frozen):
+            rows = db.get_alerts_by_hour(24)
+
+        self.assertEqual(sum(r["count"] for r in rows), 1, rows)
+        self.assertEqual(rows, [{"hour": (self.frozen - timedelta(hours=1)).strftime("%H"),
+                                 "count": 1}])
+
+    def test_get_alerts_by_hour_honours_the_hours_argument(self):
+        db = self._db_with_alerts(1, 25)
+
+        with self._clock(self.frozen):
+            self.assertEqual(sum(r["count"] for r in db.get_alerts_by_hour(26)), 2)
+            self.assertEqual(db.get_alerts_by_hour(0), [])
+
+
 if __name__ == "__main__":
     unittest.main()

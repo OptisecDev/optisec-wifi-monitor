@@ -4,6 +4,7 @@
 import sys
 import os
 import csv
+import logging
 import threading
 import signal
 import time
@@ -33,6 +34,7 @@ from modules.telegram_notifier import TelegramNotifier
 from modules.pdf_reporter import PDFReporter
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 BANNER = """
 ╔══════════════════════════════════════════════════════════════╗
@@ -189,7 +191,9 @@ def _build_components(db: Database, monitor_iface: str, internet_iface: str, lan
 
 
 def start_monitoring_threads(components: dict) -> list:
-    threads = []
+    # Recorded in components as each starts, so stop_all_components can join
+    # them even if a later one fails to start.
+    threads = components.setdefault('threads', [])
     for name, fn in [
         ('DeviceMonitor', components['device_monitor'].start),
         ('AttackDetector', components['attack_detector'].start),
@@ -213,13 +217,16 @@ _STOPPABLE_COMPONENTS = (
 )
 
 
-def stop_all_components(components: dict):
-    """Signal every monitoring thread to exit its sniff/poll loop.
+def stop_all_components(components: dict, join_timeout: float = 2.0):
+    """Stop every component, join its threads, then close the database.
 
-    Threads are daemon=True so the process itself never hangs without this,
-    but nothing was calling .stop() anywhere - each detector's sniff() session
-    only ever ended via the whole process dying, never gracefully. Safe to
-    call more than once (each .stop() just sets a flag).
+    Threads are daemon=True so the process itself never hangs without this.
+    Safe to call more than once (each .stop() just sets a flag).
+
+    Joining shares one join_timeout deadline: a thread can be blocked in
+    sniff() (until the next packet) or a long sleep, and must not hang
+    shutdown. Writes from any such straggler after the close below are
+    dropped with a debug log instead of raising.
     """
     for name in _STOPPABLE_COMPONENTS:
         comp = components.get(name)
@@ -229,11 +236,21 @@ def stop_all_components(components: dict):
             comp.stop()
         except Exception:
             pass
-    # Last, once nothing should be writing any more. Daemon threads still mid-
-    # packet get sqlite3.ProgrammingError rather than an unclosed connection.
+
+    threads = list(components.get('threads', ()))
+    for name in _STOPPABLE_COMPONENTS:
+        threads.extend(getattr(components.get(name), 'threads', ()))
+    deadline = time.monotonic() + join_timeout
+    for t in threads:
+        if t is not threading.current_thread():
+            t.join(max(0.0, deadline - time.monotonic()))
+    alive = [t.name for t in threads if t.is_alive()]
+    if alive:
+        logger.debug("Threads still running at database close: %s", ", ".join(alive))
+
     db = components.get('db')
     if db is not None:
-        db.close()
+        db.close(drop_late_writes=True)
 
 
 def _install_shutdown_handler(components: dict):

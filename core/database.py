@@ -1,12 +1,21 @@
 """SQLite database manager for Optisec WiFi Monitor."""
 
+import functools
+import logging
 import sqlite3
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_DB_PATH = os.path.expanduser("~/.optisec/optisec.db")
+
+
+def _local_now() -> datetime:
+    """The one clock behind stored timestamps and time-window cutoffs."""
+    return datetime.now()
 
 
 def _now_ts() -> str:
@@ -22,7 +31,28 @@ def _now_ts() -> str:
     ai_reports, and first-insert device/baseline/audit rows) may be in UTC.
     The schema and those existing rows are deliberately left unchanged.
     """
-    return datetime.now().isoformat(" ")
+    return _local_now().isoformat(" ")
+
+
+def _write(default=None):
+    """Mark a write method whose late call after close(drop_late_writes=True)
+    is logged and dropped (returning `default`) instead of raising.
+
+    Reads keep raising: a component acting on empty results during shutdown
+    could fire false alerts (e.g. Telegram) instead of simply aborting.
+    """
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return fn(self, *args, **kwargs)
+            except sqlite3.ProgrammingError:
+                if not (self._closed and self._drop_late_writes):
+                    raise
+                logger.debug("Database closed for shutdown; dropped late %s()", fn.__name__)
+                return default
+        return wrapper
+    return decorator
 
 
 class Database:
@@ -35,6 +65,7 @@ class Database:
         self._conns = []
         self._conns_lock = threading.Lock()
         self._closed = False
+        self._drop_late_writes = False
         self._init_db()
 
     def _get_conn(self):
@@ -57,14 +88,18 @@ class Database:
         self._local.conn = conn
         return conn
 
-    def close(self):
+    def close(self, drop_late_writes: bool = False):
         """Close every connection this instance opened, in any thread.
 
         Safe to call more than once. Any later query raises
-        sqlite3.ProgrammingError, like a closed sqlite3.Connection.
+        sqlite3.ProgrammingError, like a closed sqlite3.Connection - except
+        that with drop_late_writes=True (process shutdown only), a write from
+        a straggling daemon thread is logged at debug level and dropped.
         """
         with self._conns_lock:
             self._closed = True
+            if drop_late_writes:
+                self._drop_late_writes = True
             conns, self._conns = self._conns, []
         for conn in conns:
             conn.close()
@@ -195,6 +230,7 @@ class Database:
         return dict(row) if row else None
 
     # --- Devices ---
+    @_write(False)
     def upsert_device(self, mac: str, ip: str = None, hostname: str = None,
                       vendor: str = None, signal: int = None):
         # INSERT OR IGNORE + rowcount replaces a separate SELECT-then-INSERT/UPDATE:
@@ -223,6 +259,7 @@ class Database:
         row = self.fetchone("SELECT COUNT(*) as cnt FROM devices")
         return row['cnt'] if row else 0
 
+    @_write()
     def set_whitelist(self, mac: str, whitelisted: bool):
         self.execute("UPDATE devices SET is_whitelisted=? WHERE mac=?", (int(whitelisted), mac))
 
@@ -231,6 +268,7 @@ class Database:
         return [r['mac'] for r in rows]
 
     # --- Alerts ---
+    @_write()
     def add_alert(self, alert_type: str, severity: str, message: str, details: str = None):
         self.execute(
             "INSERT INTO alerts (alert_type, severity, message, details, timestamp) VALUES (?,?,?,?,?)",
@@ -248,10 +286,12 @@ class Database:
         row = self.fetchone("SELECT COUNT(*) as cnt FROM alerts WHERE resolved=0")
         return row['cnt'] if row else 0
 
+    @_write()
     def resolve_alert(self, alert_id: int):
         self.execute("UPDATE alerts SET resolved=1 WHERE id=?", (alert_id,))
 
     # --- Attacks ---
+    @_write()
     def add_attack(self, attack_type: str, severity: str, source_mac: str = None,
                    target_mac: str = None, bssid: str = None, ssid: str = None, details: str = None):
         self.execute(
@@ -274,6 +314,7 @@ class Database:
     def get_baseline_for_ssid(self, ssid: str):
         return self.fetchall("SELECT * FROM bssid_baseline WHERE ssid=?", (ssid,))
 
+    @_write()
     def upsert_bssid_baseline(self, bssid: str, ssid: str = None, vendor: str = None,
                               channel: int = None, signal: int = None):
         existing = self.get_bssid_baseline(bssid)
@@ -303,6 +344,7 @@ class Database:
         return self.get_bssid_baseline(bssid)
 
     # --- Encryption Audits ---
+    @_write()
     def upsert_audit(self, bssid: str, ssid: str, encryption_type: str,
                      wps_enabled: bool, pmf_enabled: bool, security_score: int,
                      channel: int = None, signal: int = None):
@@ -327,6 +369,7 @@ class Database:
         return self.fetchall("SELECT * FROM encryption_audits ORDER BY timestamp DESC LIMIT ?", (limit,))
 
     # --- AI Reports ---
+    @_write()
     def add_report(self, report_type: str, content: str, language: str = 'en'):
         self.execute(
             "INSERT INTO ai_reports (report_type, content, language, timestamp) VALUES (?,?,?,?)",
@@ -346,11 +389,18 @@ class Database:
         }
 
     def get_alerts_by_hour(self, hours: int = 24):
+        # Rows are stored in local time (_now_ts), so the cutoff must be local
+        # too - SQLite's datetime('now', ...) is UTC. Computed from the same
+        # clock as the writes; equivalent to datetime('now', 'localtime', ...).
+        # Rows written before the upgrade through the UTC column default can
+        # appear off by the UTC offset; that only affects time windows during
+        # the first day after upgrading, and those rows are left unchanged.
+        cutoff = (_local_now() - timedelta(hours=hours)).isoformat(" ")
         return self.fetchall(
             "SELECT strftime('%H', timestamp) as hour, COUNT(*) as count "
-            "FROM alerts WHERE timestamp >= datetime('now', ?) "
+            "FROM alerts WHERE timestamp >= ? "
             "GROUP BY hour ORDER BY hour",
-            (f'-{hours} hours',)
+            (cutoff,)
         )
 
     def get_attacks_by_type(self):

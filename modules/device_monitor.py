@@ -41,6 +41,7 @@ class DeviceMonitor:
         self._running = False
         self._known_macs: set = set()
         self._lock = threading.Lock()
+        self.threads: list = []  # joined by stop_all_components
 
         if MANUF_AVAILABLE:
             try:
@@ -59,6 +60,7 @@ class DeviceMonitor:
         # Start passive scapy sniffer in background
         if SCAPY_AVAILABLE:
             t_passive = threading.Thread(target=self._passive_scan, daemon=True)
+            self.threads.append(t_passive)
             t_passive.start()
 
         # Active nmap scan on interval
