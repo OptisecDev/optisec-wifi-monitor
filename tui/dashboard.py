@@ -195,7 +195,8 @@ class TUIDashboard:
         t.append(f"  Mon:{monitor_iface}  ", style="green")
         t.append(f"  Net:{internet_iface}  ",style="blue")
         if self._license_mgr and self._license_mgr.is_valid:
-            t.append(f"  LICENSED TO: {self._license_mgr.name}  ", style="bold yellow")
+            tier = (self._license_mgr.tier or "standard").upper()
+            t.append(f"  LICENSED ({tier})  ", style="bold yellow")
         return Panel(Align.center(t), style="bold blue", height=3)
 
     def _make_stats_panel(self) -> Panel:

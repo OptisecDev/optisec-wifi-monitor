@@ -19,7 +19,7 @@ from core.database import Database
 from core.config_manager import ConfigManager
 from core.interface_manager import InterfaceManager
 from core.alert_manager import AlertManager
-from core.license_manager import LicenseManager
+from core.license_manager import LicenseManager, LicenseActivationError
 from modules.device_monitor import DeviceMonitor
 from modules.attack_detector import AttackDetector
 from modules.deauth_detector import DeauthDetector
@@ -71,11 +71,22 @@ def require_authorization() -> bool:
 
 def init_license() -> LicenseManager:
     lic = LicenseManager()
-    lic.load_or_create(
-        name_prompt_fn=lambda: console.input(
-            "\n[bold cyan]First run — enter your name for license: [/bold cyan]"
-        ).strip() or "User"
-    )
+    try:
+        lic.load_or_create(
+            key_prompt_fn=lambda: console.input(
+                "\n[bold cyan]First run — enter your OPTISEC license key: [/bold cyan]"
+            )
+        )
+    except LicenseActivationError as exc:
+        console.print(Panel.fit(
+            "[bold red]LICENSE ACTIVATION FAILED[/bold red]\n\n"
+            f"[white]{exc}[/white]\n\n"
+            "[white]Activation requires a real license key issued after purchase\n"
+            "and a working internet connection the first time this runs.\n"
+            "Check your key and connection, then try again.[/white]",
+            border_style="red",
+        ))
+        sys.exit(1)
     if lic.is_valid:
         console.print(f"[green]✓  {lic.display}[/green]")
     threading.Thread(
@@ -85,19 +96,21 @@ def init_license() -> LicenseManager:
 
 
 def require_valid_license(lic: LicenseManager):
-    """Block startup unless the license file is present, signed, and bound
-    to this machine. Without this, license status never affected anything
-    the app did - is_valid was only read to decide whether to print a
-    header string."""
+    """Block startup unless the license is activated against the real
+    license server, unrevoked, bound to this machine, and still within its
+    offline grace period. Without this, license status never affected
+    anything the app did - is_valid was only read to decide whether to
+    print a header string."""
     if lic.is_valid:
         return
     console.print(Panel.fit(
         "[bold red]LICENSE INVALID[/bold red]\n\n"
-        "[white]No valid license was found for this machine.\n"
+        "[white]No valid, currently-verified license was found for this machine.\n"
         f"Expected file: [cyan]{os.path.expanduser('~/.optisec/license.key')}[/cyan]\n\n"
-        "This can happen if the license file is missing, was edited,\n"
-        "or was copied from a different machine (licenses are bound\n"
-        "to one machine each).[/white]",
+        "This can happen if the license file is missing, was edited, was\n"
+        "revoked, expired, was copied from a different machine (licenses\n"
+        "are bound to one machine each), or hasn't been able to reach the\n"
+        "license server in a while.[/white]",
         border_style="red",
     ))
     sys.exit(1)
