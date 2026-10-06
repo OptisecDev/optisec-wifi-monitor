@@ -35,6 +35,18 @@ _SERVER_CHECK_INTERVAL = timedelta(hours=24)
 _OFFLINE_GRACE_PERIOD = timedelta(days=7)
 
 
+def mask_license_key(key) -> str:
+    """Return a display-safe form of a license key: only the last 4
+    characters are shown ("****-ABCD"). Keys shorter than 8 characters
+    reveal nothing ("****"), and None/empty is handled safely. Use this
+    anywhere a key is shown to the user or written to a log/report; the
+    real key is still what gets stored and sent to /verify."""
+    key = (key or "").strip()
+    if len(key) < 8:
+        return "****"
+    return f"****-{key[-4:]}"
+
+
 class LicenseActivationError(Exception):
     """Raised when a license key cannot be activated: invalid/unknown key,
     revoked, expired, device limit reached, or the server is unreachable.
@@ -102,7 +114,7 @@ class LicenseManager:
     @property
     def display(self) -> str:
         tier = (self.tier or "standard").upper()
-        return f"LICENSED ({tier}): {self.license_key}"
+        return f"LICENSED ({tier}): {mask_license_key(self.license_key)}"
 
     # ── Internal ──────────────────────────────────────────────────────────
 
