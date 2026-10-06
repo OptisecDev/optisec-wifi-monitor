@@ -42,7 +42,27 @@ def _temp_db():
     """
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
-    return Database(db_path=path)
+    db = Database(db_path=path)
+    _open_dbs.append(db)
+    return db
+
+
+# Databases created by _temp_db() during the current test; TempDbTestCase
+# closes and deletes them in tearDown.
+_open_dbs = []
+
+
+class TempDbTestCase(unittest.TestCase):
+
+    def tearDown(self):
+        while _open_dbs:
+            db = _open_dbs.pop()
+            db.close()
+            for suffix in ("", "-wal", "-shm"):
+                try:
+                    os.unlink(db.db_path + suffix)
+                except FileNotFoundError:
+                    pass
 
 
 def establish_trust(detector, bssid, ssid, vendor="TP-Link", channel=6, signal=-50,
@@ -58,7 +78,7 @@ def establish_trust(detector, bssid, ssid, vendor="TP-Link", channel=6, signal=-
     )
 
 
-class TestRogueAPDetectorKnownAP(unittest.TestCase):
+class TestRogueAPDetectorKnownAP(TempDbTestCase):
     """A BSSID already part of the trusted baseline must not be flagged."""
 
     def test_repeated_sighting_of_trusted_bssid_does_not_alert(self):
@@ -82,7 +102,7 @@ class TestRogueAPDetectorKnownAP(unittest.TestCase):
         alert_mgr.add.assert_not_called()
 
 
-class TestRogueAPDetectorNewUntrustedAP(unittest.TestCase):
+class TestRogueAPDetectorNewUntrustedAP(TempDbTestCase):
     """A brand-new BSSID for an SSID with established trust must be flagged."""
 
     def test_new_bssid_on_trusted_ssid_is_flagged(self):
@@ -129,7 +149,7 @@ class TestRogueAPDetectorNewUntrustedAP(unittest.TestCase):
         fake_attack_detector.get_known_bssids.assert_called_with(ssid)
 
 
-class TestRogueAPDetectorSignalAnomaly(unittest.TestCase):
+class TestRogueAPDetectorSignalAnomaly(TempDbTestCase):
     """A trusted BSSID whose signal suddenly shifts far from baseline is flagged."""
 
     def test_large_signal_deviation_on_trusted_bssid_is_flagged(self):
@@ -177,7 +197,7 @@ class TestRogueAPDetectorSignalAnomaly(unittest.TestCase):
         alert_mgr.add.assert_not_called()
 
 
-class TestRogueAPDetectorDisabled(unittest.TestCase):
+class TestRogueAPDetectorDisabled(TempDbTestCase):
     """Detector disabled via config must be a complete no-op."""
 
     def test_disabled_detector_does_not_sniff(self):
@@ -204,7 +224,7 @@ class TestRogueAPDetectorDisabled(unittest.TestCase):
         self.assertTrue(detector2.get_stats()["enabled"])
 
 
-class TestRogueAPDetectorInterfaceUnavailable(unittest.TestCase):
+class TestRogueAPDetectorInterfaceUnavailable(TempDbTestCase):
     """If the monitor-mode interface can't be sniffed, start() must fail gracefully."""
 
     def test_sniff_exception_retries_then_stops_when_told(self):

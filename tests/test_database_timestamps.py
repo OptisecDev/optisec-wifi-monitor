@@ -39,17 +39,22 @@ OLD_ALERTS = [
 class TimestampTestCase(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
         self.db_path = os.path.join(self.tmpdir, "optisec.db")
 
-    def tearDown(self):
-        shutil.rmtree(self.tmpdir, ignore_errors=True)
+    def open_db(self, db_path=None):
+        """Database closed at test end (cleanups run LIFO, so before rmtree)."""
+        db = Database(db_path=db_path or self.db_path)
+        self.addCleanup(db.close)
+        return db
 
 
 class TestOldFormatDatabaseCompatibility(TimestampTestCase):
 
     def _create_old_format_db(self):
-        Database(db_path=self.db_path)  # schema is unchanged between versions
+        Database(db_path=self.db_path).close()  # schema is unchanged between versions
         conn = sqlite3.connect(self.db_path)
+        self.addCleanup(conn.close)  # also covers a failed insert; closing twice is a no-op
         conn.executemany(
             "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
             [(t, "HIGH", f"msg {t}", ts) for ts, t in OLD_ALERTS],
@@ -71,7 +76,7 @@ class TestOldFormatDatabaseCompatibility(TimestampTestCase):
 
     def test_old_timestamps_read_back_unchanged_and_ordered(self):
         self._create_old_format_db()
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
 
         alerts = db.get_alerts(limit=-1)
         self.assertEqual([a["alert_type"] for a in alerts], ["C", "B", "A"])
@@ -86,7 +91,7 @@ class TestOldFormatDatabaseCompatibility(TimestampTestCase):
 
     def test_csv_export_of_old_db_is_oldest_first(self):
         self._create_old_format_db()
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
         csv_path = os.path.join(self.tmpdir, "alerts.csv")
 
         AlertManager(db).export_alerts_to_csv(csv_path)
@@ -99,7 +104,7 @@ class TestOldFormatDatabaseCompatibility(TimestampTestCase):
 
     def test_new_writes_sort_correctly_against_old_rows(self):
         self._create_old_format_db()
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
 
         db.upsert_device("AA:AA:AA:AA:AA:01")   # existing row -> last_seen = now
         db.upsert_bssid_baseline("11:22:33:44:55:66", ssid="HomeNet")
@@ -115,18 +120,21 @@ class TestOldFormatDatabaseCompatibility(TimestampTestCase):
 class TestExplicitTimestampFormat(TimestampTestCase):
 
     def test_written_value_is_iso_string_parseable_as_local_now(self):
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
         db.upsert_device("AA:AA:AA:AA:AA:01")
         db.upsert_device("AA:AA:AA:AA:AA:01")
 
-        raw = sqlite3.connect(self.db_path).execute(
-            "SELECT last_seen, typeof(last_seen) FROM devices").fetchone()
+        conn = sqlite3.connect(self.db_path)
+        try:
+            raw = conn.execute("SELECT last_seen, typeof(last_seen) FROM devices").fetchone()
+        finally:
+            conn.close()
         self.assertEqual(raw[1], "text")
         self.assertLess(abs(datetime.fromisoformat(raw[0]) - datetime.now()), timedelta(minutes=1))
         self.assertRegex(raw[0], r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{6})?$")
 
     def test_writes_do_not_use_deprecated_default_adapter(self):
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
         with warnings.catch_warnings():
             warnings.simplefilter("error", DeprecationWarning)
             db.upsert_device("AA:AA:AA:AA:AA:01")
@@ -141,6 +149,7 @@ class TestExplicitTimestampFormat(TimestampTestCase):
         stored, so old and new rows are interchangeable."""
         dt = datetime(2025, 6, 7, 8, 9, 10, 111213)
         conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             try:
@@ -217,7 +226,7 @@ class TestInsertsUseExplicitLocalTime(TimestampTestCase):
         for i, (label, write, sql) in enumerate(self.INSERT_PATHS):
             with self.subTest(path=label):
                 db_path = os.path.join(self.tmpdir, f"path{i}.db")
-                db = Database(db_path=db_path)
+                db = self.open_db(db_path)
                 clock = FakeClock()
                 with patch("core.database._now_ts", clock):
                     write(db)
@@ -229,7 +238,7 @@ class TestInsertsUseExplicitLocalTime(TimestampTestCase):
         for i, (label, write, sql) in enumerate(self.INSERT_PATHS):
             with self.subTest(path=label):
                 db_path = os.path.join(self.tmpdir, f"path{i}.db")
-                db = Database(db_path=db_path)
+                db = self.open_db(db_path)
                 write(db)
                 for value in self._raw(db_path, sql):
                     self.assertRegex(value, TS_FORMAT)
@@ -238,7 +247,7 @@ class TestInsertsUseExplicitLocalTime(TimestampTestCase):
                                     f"{label} stored {value!r}, local now is {datetime.now()}")
 
     def test_mixed_insert_and_update_paths_sort_chronologically(self):
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
         with patch("core.database._now_ts", FakeClock()):
             db.upsert_device("AA:AA:AA:AA:AA:01")             # insert
             db.upsert_device("AA:AA:AA:AA:AA:01")             # update (always explicit)
@@ -260,7 +269,7 @@ class TestInsertsUseExplicitLocalTime(TimestampTestCase):
         self.assertLess(first["last_seen"], newest["first_seen"])
 
     def test_mixed_alert_paths_export_in_true_chronological_order(self):
-        db = Database(db_path=self.db_path)
+        db = self.open_db()
         mgr = AlertManager(db)
         clock = FakeClock()
         with patch("core.database._now_ts", clock):

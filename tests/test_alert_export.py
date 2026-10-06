@@ -33,6 +33,7 @@ class ExportTestCase(unittest.TestCase):
         self.csv_path = os.path.join(self.tmpdir, "alerts.csv")
 
     def tearDown(self):
+        self.db.close()
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
 

@@ -30,19 +30,60 @@ class Database:
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._local = threading.local()
+        # Every per-thread connection, so close() can close them all - not just
+        # the calling thread's.
+        self._conns = []
+        self._conns_lock = threading.Lock()
+        self._closed = False
         self._init_db()
 
     def _get_conn(self):
-        if not hasattr(self._local, 'conn') or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
-            self._local.conn.row_factory = sqlite3.Row
-            # busy_timeout is per-connection (unlike journal_mode) - must be set
-            # on every new connection, not just the one that first opens the file.
-            self._local.conn.execute("PRAGMA busy_timeout=30000")
-        return self._local.conn
+        conn = getattr(self._local, 'conn', None)
+        if conn is not None:
+            return conn
+        with self._conns_lock:
+            if self._closed:
+                raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
+            conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
+            try:
+                conn.row_factory = sqlite3.Row
+                # busy_timeout is per-connection (unlike journal_mode) - must be set
+                # on every new connection, not just the one that first opens the file.
+                conn.execute("PRAGMA busy_timeout=30000")
+            except BaseException:
+                conn.close()
+                raise
+            self._conns.append(conn)
+        self._local.conn = conn
+        return conn
+
+    def close(self):
+        """Close every connection this instance opened, in any thread.
+
+        Safe to call more than once. Any later query raises
+        sqlite3.ProgrammingError, like a closed sqlite3.Connection.
+        """
+        with self._conns_lock:
+            self._closed = True
+            conns, self._conns = self._conns, []
+        for conn in conns:
+            conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
 
     def _init_db(self):
         conn = sqlite3.connect(self.db_path, timeout=30.0)
+        try:
+            self._create_schema(conn)
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _create_schema(conn):
         # WAL lets readers and writers proceed concurrently instead of the
         # default rollback-journal mode, where a single writer blocks every
         # other reader/writer - critical now that 8+ threads share this file.
@@ -132,7 +173,6 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_bssid_baseline_ssid ON bssid_baseline(ssid);
         """)
         conn.commit()
-        conn.close()
 
     def execute(self, query: str, params: tuple = ()):
         conn = self._get_conn()

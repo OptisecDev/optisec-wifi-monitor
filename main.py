@@ -120,6 +120,15 @@ def require_valid_license(lic: LicenseManager):
 def init_components(monitor_iface: str, internet_iface: str, lang: str,
                     license_mgr: LicenseManager = None) -> dict:
     db = Database()
+    try:
+        return _build_components(db, monitor_iface, internet_iface, lang, license_mgr)
+    except BaseException:
+        db.close()
+        raise
+
+
+def _build_components(db: Database, monitor_iface: str, internet_iface: str, lang: str,
+                      license_mgr: LicenseManager = None) -> dict:
     config = ConfigManager()
     config.config["monitor_interface"] = monitor_iface
     config.config["internet_interface"] = internet_iface
@@ -220,6 +229,11 @@ def stop_all_components(components: dict):
             comp.stop()
         except Exception:
             pass
+    # Last, once nothing should be writing any more. Daemon threads still mid-
+    # packet get sqlite3.ProgrammingError rather than an unclosed connection.
+    db = components.get('db')
+    if db is not None:
+        db.close()
 
 
 def _install_shutdown_handler(components: dict):
@@ -266,14 +280,14 @@ def tui(monitor_iface, internet_iface, lang):
         sys.exit(0)
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
-    start_monitoring_threads(components)
-    _install_shutdown_handler(components)
-
-    from tui.dashboard import TUIDashboard
-    dash = TUIDashboard(components)
-    console.print("\n[green]✓  Starting TUI dashboard... (Ctrl+C to exit)[/green]\n")
-    time.sleep(0.5)
     try:
+        start_monitoring_threads(components)
+        _install_shutdown_handler(components)
+
+        from tui.dashboard import TUIDashboard
+        dash = TUIDashboard(components)
+        console.print("\n[green]✓  Starting TUI dashboard... (Ctrl+C to exit)[/green]\n")
+        time.sleep(0.5)
         dash.run()
     finally:
         stop_all_components(components)
@@ -294,14 +308,14 @@ def web(monitor_iface, internet_iface, port, lang):
         sys.exit(0)
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
-    start_monitoring_threads(components)
-    _install_shutdown_handler(components)
-
-    from web.app import create_app
-    app = create_app(components)
-    console.print(f"\n[green]✓  Web dashboard: [bold]http://0.0.0.0:{port}[/bold][/green]")
-    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
     try:
+        start_monitoring_threads(components)
+        _install_shutdown_handler(components)
+
+        from web.app import create_app
+        app = create_app(components)
+        console.print(f"\n[green]✓  Web dashboard: [bold]http://0.0.0.0:{port}[/bold][/green]")
+        console.print("[dim]Press Ctrl+C to stop[/dim]\n")
         app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     finally:
         stop_all_components(components)
@@ -322,25 +336,25 @@ def both(monitor_iface, internet_iface, port, lang):
         sys.exit(0)
 
     components = init_components(monitor_iface, internet_iface, lang, lic)
-    start_monitoring_threads(components)
-    _install_shutdown_handler(components)
-
-    # Start web in background thread
-    from web.app import create_app
-    app = create_app(components)
-
-    def run_web():
-        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-
-    web_thread = threading.Thread(target=run_web, name='WebServer', daemon=True)
-    web_thread.start()
-    console.print(f"[green]✓  Web dashboard: [bold]http://0.0.0.0:{port}[/bold][/green]")
-
-    # TUI in foreground
-    from tui.dashboard import TUIDashboard
-    dash = TUIDashboard(components)
-    time.sleep(0.5)
     try:
+        start_monitoring_threads(components)
+        _install_shutdown_handler(components)
+
+        # Start web in background thread
+        from web.app import create_app
+        app = create_app(components)
+
+        def run_web():
+            app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+        web_thread = threading.Thread(target=run_web, name='WebServer', daemon=True)
+        web_thread.start()
+        console.print(f"[green]✓  Web dashboard: [bold]http://0.0.0.0:{port}[/bold][/green]")
+
+        # TUI in foreground
+        from tui.dashboard import TUIDashboard
+        dash = TUIDashboard(components)
+        time.sleep(0.5)
         dash.run()
     finally:
         stop_all_components(components)
@@ -366,12 +380,12 @@ def export(csv_path):
     # prompt would block scripted/scheduled exports. The license check above
     # still applies because export is a feature of the licensed product.
 
-    alert_mgr = AlertManager(Database())
-    try:
-        count = alert_mgr.export_alerts_to_csv(csv_path)
-    except (OSError, csv.Error) as exc:
-        console.print(f"[red]✗  Failed to write CSV to {csv_path}: {exc}[/red]")
-        sys.exit(1)
+    with Database() as db:
+        try:
+            count = AlertManager(db).export_alerts_to_csv(csv_path)
+        except (OSError, csv.Error) as exc:
+            console.print(f"[red]✗  Failed to write CSV to {csv_path}: {exc}[/red]")
+            sys.exit(1)
 
     console.print(f"[green]✓  Exported {count} alert(s) to [bold]{csv_path}[/bold][/green]")
 
