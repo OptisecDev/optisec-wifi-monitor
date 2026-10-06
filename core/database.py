@@ -9,6 +9,16 @@ from datetime import datetime
 DEFAULT_DB_PATH = os.path.expanduser("~/.optisec/optisec.db")
 
 
+def _now_ts() -> str:
+    """Current local time as an ISO-8601 string for TIMESTAMP columns.
+
+    Identical to what sqlite3's default datetime adapter (deprecated since
+    Python 3.12) used to store - datetime.isoformat(" ") - so rows written
+    by older versions and by this one compare, sort and parse the same.
+    """
+    return datetime.now().isoformat(" ")
+
+
 class Database:
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
         self.db_path = db_path
@@ -154,7 +164,7 @@ class Database:
         if not is_new:
             self.execute(
                 "UPDATE devices SET ip=?, hostname=?, vendor=?, last_seen=?, signal_strength=? WHERE mac=?",
-                (ip, hostname, vendor, datetime.now(), signal, mac)
+                (ip, hostname, vendor, _now_ts(), signal, mac)
             )
         return is_new
 
@@ -232,7 +242,7 @@ class Database:
                 "seen_count=?, avg_signal=? WHERE bssid=?",
                 (ssid or existing['ssid'], vendor or existing['vendor'],
                  channel if channel is not None else existing['channel'],
-                 datetime.now(), seen_count, avg_signal, bssid)
+                 _now_ts(), seen_count, avg_signal, bssid)
             )
         else:
             self.execute(
@@ -252,7 +262,7 @@ class Database:
                 "UPDATE encryption_audits SET ssid=?, encryption_type=?, wps_enabled=?, "
                 "pmf_enabled=?, security_score=?, channel=?, signal_strength=?, timestamp=? WHERE bssid=?",
                 (ssid, encryption_type, int(wps_enabled), int(pmf_enabled),
-                 security_score, channel, signal, datetime.now(), bssid)
+                 security_score, channel, signal, _now_ts(), bssid)
             )
         else:
             self.execute(

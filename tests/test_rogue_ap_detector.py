@@ -51,7 +51,7 @@ def establish_trust(detector, bssid, ssid, vendor="TP-Link", channel=6, signal=-
     for _ in range(sightings):
         detector.db.upsert_bssid_baseline(bssid, ssid, vendor, channel, signal)
     # Backdate first_seen so the age requirement is satisfied.
-    old_first_seen = datetime.now() - timedelta(minutes=age_minutes)
+    old_first_seen = (datetime.now() - timedelta(minutes=age_minutes)).isoformat(" ")
     detector.db.execute(
         "UPDATE bssid_baseline SET first_seen=? WHERE bssid=?",
         (old_first_seen, bssid)
