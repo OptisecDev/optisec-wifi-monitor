@@ -15,6 +15,12 @@ def _now_ts() -> str:
     Identical to what sqlite3's default datetime adapter (deprecated since
     Python 3.12) used to store - datetime.isoformat(" ") - so rows written
     by older versions and by this one compare, sort and parse the same.
+
+    Every write passes this explicitly, including INSERTs into columns that
+    have DEFAULT CURRENT_TIMESTAMP. That default is UTC, not local time, so
+    rows written by older versions through the default (alerts, attacks,
+    ai_reports, and first-insert device/baseline/audit rows) may be in UTC.
+    The schema and those existing rows are deliberately left unchanged.
     """
     return datetime.now().isoformat(" ")
 
@@ -156,15 +162,17 @@ class Database:
         # its own active-nmap loop) both see "no existing row" for the same brand-new
         # MAC and both try to INSERT, raising UNIQUE constraint IntegrityError. SQLite
         # serializes the INSERT OR IGNORE itself, so only one thread's insert can win.
+        now = _now_ts()
         cursor = self.execute(
-            "INSERT OR IGNORE INTO devices (mac, ip, hostname, vendor, signal_strength) VALUES (?,?,?,?,?)",
-            (mac, ip, hostname, vendor, signal)
+            "INSERT OR IGNORE INTO devices (mac, ip, hostname, vendor, first_seen, last_seen, "
+            "signal_strength) VALUES (?,?,?,?,?,?,?)",
+            (mac, ip, hostname, vendor, now, now, signal)
         )
         is_new = cursor.rowcount == 1
         if not is_new:
             self.execute(
                 "UPDATE devices SET ip=?, hostname=?, vendor=?, last_seen=?, signal_strength=? WHERE mac=?",
-                (ip, hostname, vendor, _now_ts(), signal, mac)
+                (ip, hostname, vendor, now, signal, mac)
             )
         return is_new
 
@@ -185,8 +193,8 @@ class Database:
     # --- Alerts ---
     def add_alert(self, alert_type: str, severity: str, message: str, details: str = None):
         self.execute(
-            "INSERT INTO alerts (alert_type, severity, message, details) VALUES (?,?,?,?)",
-            (alert_type, severity, message, details)
+            "INSERT INTO alerts (alert_type, severity, message, details, timestamp) VALUES (?,?,?,?,?)",
+            (alert_type, severity, message, details, _now_ts())
         )
 
     def get_alerts(self, limit: int = 50, unresolved_only: bool = False):
@@ -207,9 +215,9 @@ class Database:
     def add_attack(self, attack_type: str, severity: str, source_mac: str = None,
                    target_mac: str = None, bssid: str = None, ssid: str = None, details: str = None):
         self.execute(
-            "INSERT INTO attacks (attack_type, severity, source_mac, target_mac, bssid, ssid, details) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (attack_type, severity, source_mac, target_mac, bssid, ssid, details)
+            "INSERT INTO attacks (attack_type, severity, source_mac, target_mac, bssid, ssid, details, "
+            "timestamp) VALUES (?,?,?,?,?,?,?,?)",
+            (attack_type, severity, source_mac, target_mac, bssid, ssid, details, _now_ts())
         )
 
     def get_attacks(self, limit: int = 50):
@@ -245,10 +253,12 @@ class Database:
                  _now_ts(), seen_count, avg_signal, bssid)
             )
         else:
+            now = _now_ts()
             self.execute(
-                "INSERT INTO bssid_baseline (bssid, ssid, vendor, channel, seen_count, avg_signal) "
-                "VALUES (?,?,?,?,1,?)",
-                (bssid, ssid, vendor, channel, float(signal) if signal is not None else None)
+                "INSERT INTO bssid_baseline (bssid, ssid, vendor, channel, first_seen, last_seen, "
+                "seen_count, avg_signal) VALUES (?,?,?,?,?,?,1,?)",
+                (bssid, ssid, vendor, channel, now, now,
+                 float(signal) if signal is not None else None)
             )
         return self.get_bssid_baseline(bssid)
 
@@ -267,9 +277,10 @@ class Database:
         else:
             self.execute(
                 "INSERT INTO encryption_audits (bssid, ssid, encryption_type, wps_enabled, "
-                "pmf_enabled, security_score, channel, signal_strength) VALUES (?,?,?,?,?,?,?,?)",
+                "pmf_enabled, security_score, channel, signal_strength, timestamp) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (bssid, ssid, encryption_type, int(wps_enabled), int(pmf_enabled),
-                 security_score, channel, signal)
+                 security_score, channel, signal, _now_ts())
             )
 
     def get_audits(self, limit: int = 50):
@@ -278,8 +289,8 @@ class Database:
     # --- AI Reports ---
     def add_report(self, report_type: str, content: str, language: str = 'en'):
         self.execute(
-            "INSERT INTO ai_reports (report_type, content, language) VALUES (?,?,?)",
-            (report_type, content, language)
+            "INSERT INTO ai_reports (report_type, content, language, timestamp) VALUES (?,?,?,?)",
+            (report_type, content, language, _now_ts())
         )
 
     def get_reports(self, limit: int = 10):

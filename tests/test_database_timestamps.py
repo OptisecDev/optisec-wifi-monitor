@@ -12,14 +12,18 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import time
 import unittest
 import warnings
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.alert_manager import AlertManager
 from core.database import Database, _now_ts
+
+TS_FORMAT = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{6})?$"
 
 # What the previous release stored: datetime.now() through the default
 # adapter (isoformat(" "), with microseconds) for explicit writes, and
@@ -145,6 +149,138 @@ class TestExplicitTimestampFormat(TimestampTestCase):
                 self.skipTest("default datetime adapter removed in this Python")
         self.assertEqual(adapted, dt.isoformat(" "))
         self.assertRegex(_now_ts(), r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{6})?$")
+
+
+class FakeClock:
+    """Stand-in for core.database._now_ts: a fixed start that advances one
+    second per call, formatted exactly like the real helper."""
+
+    def __init__(self, start=datetime(2026, 2, 3, 4, 5, 6, 123456)):
+        self.now = start
+        self.issued = []
+
+    def __call__(self):
+        self.now += timedelta(seconds=1)
+        ts = self.now.isoformat(" ")
+        self.issued.append(ts)
+        return ts
+
+
+class TestInsertsUseExplicitLocalTime(TimestampTestCase):
+    """INSERTs into columns with DEFAULT CURRENT_TIMESTAMP must store
+    _now_ts() (local time) rather than the UTC default.
+
+    Runs in a fixed UTC+3 zone so a UTC value is 3 hours away from local
+    time and cannot pass by coincidence on a UTC machine."""
+
+    def setUp(self):
+        super().setUp()
+        if not hasattr(time, "tzset"):
+            self.skipTest("time.tzset() not available on this platform")
+        self._old_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "UTC-3"  # POSIX sign convention: 3 hours ahead of UTC
+        time.tzset()
+        self.addCleanup(self._restore_tz)
+
+    def _restore_tz(self):
+        if self._old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = self._old_tz
+        time.tzset()
+
+    # Every insert path that used to rely on the column default:
+    # (label, writer, SQL returning the timestamp column(s) of the new row)
+    INSERT_PATHS = [
+        ("add_alert", lambda db: db.add_alert("DEAUTH", "HIGH", "msg"),
+         "SELECT timestamp FROM alerts"),
+        ("add_attack", lambda db: db.add_attack("DEAUTH", "HIGH", source_mac="AA:AA:AA:AA:AA:01"),
+         "SELECT timestamp FROM attacks"),
+        ("add_report", lambda db: db.add_report("PERIODIC", "report"),
+         "SELECT timestamp FROM ai_reports"),
+        ("upsert_device (new)", lambda db: db.upsert_device("AA:AA:AA:AA:AA:01"),
+         "SELECT first_seen, last_seen FROM devices"),
+        ("upsert_bssid_baseline (new)", lambda db: db.upsert_bssid_baseline("11:22:33:44:55:66", "HomeNet"),
+         "SELECT first_seen, last_seen FROM bssid_baseline"),
+        ("upsert_audit (new)", lambda db: db.upsert_audit("11:22:33:44:55:66", "HomeNet", "WPA2", False, True, 80),
+         "SELECT timestamp FROM encryption_audits"),
+    ]
+
+    def _raw(self, db_path, sql):
+        conn = sqlite3.connect(db_path)
+        try:
+            return conn.execute(sql).fetchone()
+        finally:
+            conn.close()
+
+    def test_each_insert_path_stores_value_from_now_ts(self):
+        for i, (label, write, sql) in enumerate(self.INSERT_PATHS):
+            with self.subTest(path=label):
+                db_path = os.path.join(self.tmpdir, f"path{i}.db")
+                db = Database(db_path=db_path)
+                clock = FakeClock()
+                with patch("core.database._now_ts", clock):
+                    write(db)
+                self.assertEqual(len(clock.issued), 1)
+                for value in self._raw(db_path, sql):
+                    self.assertEqual(value, clock.issued[0])
+
+    def test_each_insert_path_stores_local_time_not_utc(self):
+        for i, (label, write, sql) in enumerate(self.INSERT_PATHS):
+            with self.subTest(path=label):
+                db_path = os.path.join(self.tmpdir, f"path{i}.db")
+                db = Database(db_path=db_path)
+                write(db)
+                for value in self._raw(db_path, sql):
+                    self.assertRegex(value, TS_FORMAT)
+                    self.assertLess(abs(datetime.fromisoformat(value) - datetime.now()),
+                                    timedelta(minutes=1),
+                                    f"{label} stored {value!r}, local now is {datetime.now()}")
+
+    def test_mixed_insert_and_update_paths_sort_chronologically(self):
+        db = Database(db_path=self.db_path)
+        with patch("core.database._now_ts", FakeClock()):
+            db.upsert_device("AA:AA:AA:AA:AA:01")             # insert
+            db.upsert_device("AA:AA:AA:AA:AA:01")             # update (always explicit)
+            db.upsert_device("AA:AA:AA:AA:AA:02")             # insert, newest
+            db.upsert_audit("11:11:11:11:11:11", "A", "WPA2", False, True, 80)   # insert
+            db.upsert_audit("11:11:11:11:11:11", "A", "WPA2", False, True, 80)   # update
+            db.upsert_audit("22:22:22:22:22:22", "B", "WPA3", False, True, 95)   # insert, newest
+            db.upsert_bssid_baseline("33:33:33:33:33:33", "C")                   # insert
+            db.upsert_bssid_baseline("33:33:33:33:33:33", "C")                   # update
+            db.upsert_bssid_baseline("44:44:44:44:44:44", "D")                   # insert, newest
+
+        self.assertEqual([d["mac"] for d in db.get_all_devices()],
+                         ["AA:AA:AA:AA:AA:02", "AA:AA:AA:AA:AA:01"])
+        self.assertEqual([a["bssid"] for a in db.get_audits()],
+                         ["22:22:22:22:22:22", "11:11:11:11:11:11"])
+        first = db.get_bssid_baseline("33:33:33:33:33:33")
+        newest = db.get_bssid_baseline("44:44:44:44:44:44")
+        self.assertLess(first["first_seen"], first["last_seen"])
+        self.assertLess(first["last_seen"], newest["first_seen"])
+
+    def test_mixed_alert_paths_export_in_true_chronological_order(self):
+        db = Database(db_path=self.db_path)
+        mgr = AlertManager(db)
+        clock = FakeClock()
+        with patch("core.database._now_ts", clock):
+            db.add_alert("DEAUTH", "HIGH", "first")
+            mgr.add("WPS", "MEDIUM", "second", print_to_console=False)
+            db.add_alert("ROGUE_AP", "CRITICAL", "third")
+            mgr.add("NEW_DEVICE", "INFO", "fourth", print_to_console=False)
+            db.add_attack("DEAUTH", "HIGH")
+            db.add_alert("DEAUTH", "HIGH", "fifth")
+        csv_path = os.path.join(self.tmpdir, "alerts.csv")
+
+        mgr.export_alerts_to_csv(csv_path)
+
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            rows = list(csv.reader(f))[1:]
+        self.assertEqual([r[3] for r in rows], ["first", "second", "third", "fourth", "fifth"])
+        alert_ts = [ts for i, ts in enumerate(clock.issued) if i != 4]  # 5th tick went to attacks
+        self.assertEqual([r[0] for r in rows], alert_ts)
+        self.assertEqual([a["message"] for a in db.get_alerts()],
+                         ["fifth", "fourth", "third", "second", "first"])
 
 
 if __name__ == "__main__":
