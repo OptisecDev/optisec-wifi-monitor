@@ -17,12 +17,14 @@ SEVERITY_COLORS = {
 }
 
 SEVERITY_ICONS = {
-    "CRITICAL": "ð¨",
-    "HIGH": "â",
-    "MEDIUM": "â ",
-    "LOW": "â¹",
-    "INFO": "â¢",
+    "CRITICAL": "🚨",
+    "HIGH": "⛔",
+    "MEDIUM": "⚠",
+    "LOW": "ℹ",
+    "INFO": "•",
 }
+
+CSV_EXPORT_FIELDS = ['timestamp', 'alert_type', 'severity', 'message', 'details']
 
 
 class AlertManager:
@@ -60,7 +62,7 @@ class AlertManager:
         }
 
         if print_to_console:
-            icon = SEVERITY_ICONS.get(severity, "â¢")
+            icon = SEVERITY_ICONS.get(severity, "•")
             color = SEVERITY_COLORS.get(severity, "white")
             ts = now.strftime("%H:%M:%S")
             console.print(
@@ -90,20 +92,26 @@ class AlertManager:
     def info(self, alert_type: str, message: str, details: str = None):
         return self.add(alert_type, "INFO", message, details)
 
-    def export_alerts_to_csv(self, filepath: str):
-        """Export all alerts from the database to a CSV file.
+    def export_alerts_to_csv(self, filepath: str) -> int:
+        """Export the full alert log from the database to a CSV file.
+
+        Rows are in the order the database returns them (newest first).
+        An empty log produces a file containing only the header row.
 
         Args:
             filepath: Path to the CSV file to create/replace.
+
+        Returns:
+            Number of alert rows written (excluding the header).
         """
-        alerts = self.db.get_alerts(limit=10000)
+        # SQLite treats a negative LIMIT as "no limit" - export the whole log
+        # rather than silently truncating it.
+        alerts = self.db.get_alerts(limit=-1)
 
-        fields = ['id', 'alert_type', 'severity', 'message', 'details', 'timestamp', 'resolved']
-
-        with open(filepath, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_EXPORT_FIELDS, extrasaction='ignore')
             writer.writeheader()
             for alert in alerts:
                 writer.writerow(alert)
 
-        return filepath
+        return len(alerts)

@@ -3,6 +3,7 @@
 
 import sys
 import os
+import csv
 import threading
 import signal
 import time
@@ -240,11 +241,12 @@ def _install_shutdown_handler(components: dict):
 def cli(ctx):
     if ctx.invoked_subcommand is None:
         print_banner()
-        console.print("[cyan]Usage:[/cyan]  python main.py [tui|web|both|config]\n")
+        console.print("[cyan]Usage:[/cyan]  python main.py [tui|web|both|config|export]\n")
         console.print("  [bold]tui[/bold]    Rich terminal dashboard")
         console.print("  [bold]web[/bold]    Flask web dashboard (port 5000)")
         console.print("  [bold]both[/bold]   TUI + web simultaneously")
-        console.print("  [bold]config[/bold] Interactive configuration\n")
+        console.print("  [bold]config[/bold] Interactive configuration")
+        console.print("  [bold]export[/bold] Export alert log to CSV (export PATH)\n")
 
 
 @cli.command()
@@ -350,6 +352,27 @@ def configure():
     print_banner()
     cfg = ConfigManager()
     cfg.interactive_setup()
+
+
+@cli.command()
+@click.argument('csv_path', type=click.Path(dir_okay=False))
+def export(csv_path):
+    """Export the alert log to a CSV file at CSV_PATH."""
+    print_banner()
+    lic = init_license()
+    require_valid_license(lic)
+    if not require_authorization():
+        console.print("[red]Authorization not confirmed. Exiting.[/red]")
+        sys.exit(0)
+
+    alert_mgr = AlertManager(Database())
+    try:
+        count = alert_mgr.export_alerts_to_csv(csv_path)
+    except (OSError, csv.Error) as exc:
+        console.print(f"[red]✗  Failed to write CSV to {csv_path}: {exc}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]✓  Exported {count} alert(s) to [bold]{csv_path}[/bold][/green]")
 
 
 if __name__ == '__main__':
