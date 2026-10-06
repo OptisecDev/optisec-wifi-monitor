@@ -95,8 +95,8 @@ class AlertManager:
     def export_alerts_to_csv(self, filepath: str) -> int:
         """Export the full alert log from the database to a CSV file.
 
-        Rows are in the order the database returns them (newest first).
-        An empty log produces a file containing only the header row.
+        Rows are written oldest first (by timestamp, then id). An empty log
+        produces a file containing only the header row.
 
         Args:
             filepath: Path to the CSV file to create/replace.
@@ -107,6 +107,10 @@ class AlertManager:
         # SQLite treats a negative LIMIT as "no limit" - export the whole log
         # rather than silently truncating it.
         alerts = self.db.get_alerts(limit=-1)
+        # get_alerts() returns newest first for the dashboards; sort here rather
+        # than relying on (or changing) that order. id breaks timestamp ties,
+        # since CURRENT_TIMESTAMP only has one-second resolution.
+        alerts.sort(key=lambda a: (a.get('timestamp') or '', a.get('id') or 0))
 
         with open(filepath, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=CSV_EXPORT_FIELDS, extrasaction='ignore')

@@ -361,9 +361,10 @@ def export(csv_path):
     print_banner()
     lic = init_license()
     require_valid_license(lic)
-    if not require_authorization():
-        console.print("[red]Authorization not confirmed. Exiting.[/red]")
-        sys.exit(0)
+    # No require_authorization() here: export only reads alerts already recorded
+    # in the local database and never monitors a network, and the interactive
+    # prompt would block scripted/scheduled exports. The license check above
+    # still applies because export is a feature of the licensed product.
 
     alert_mgr = AlertManager(Database())
     try:

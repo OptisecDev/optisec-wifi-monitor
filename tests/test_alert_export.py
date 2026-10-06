@@ -99,6 +99,46 @@ class TestExportAlertsToCsv(ExportTestCase):
         self.assertEqual(rows[1][3], message)
         self.assertEqual(rows[1][4], details)
 
+    def _insert_at(self, timestamp, message):
+        self.db._get_conn().execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", message, timestamp),
+        )
+        self.db._get_conn().commit()
+
+    def test_rows_are_written_oldest_first(self):
+        # Inserted out of chronological order, so neither insertion (id) order
+        # nor the database's newest-first order matches the expected output.
+        self._insert_at("2026-03-02 10:00:00", "middle")
+        self._insert_at("2026-03-03 09:00:00", "newest")
+        self._insert_at("2026-03-01 23:59:59", "oldest")
+
+        self.assertEqual(self.alert_mgr.export_alerts_to_csv(self.csv_path), 3)
+
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual([r[3] for r in rows], ["oldest", "middle", "newest"])
+        self.assertEqual([r[0] for r in rows], sorted(r[0] for r in rows))
+
+    def test_equal_timestamps_are_ordered_by_id(self):
+        self._insert_at("2026-03-02 10:00:00", "later, same second, first id")
+        self._insert_at("2026-03-01 08:00:00", "earliest")
+        self._insert_at("2026-03-02 10:00:00", "later, same second, second id")
+
+        self.alert_mgr.export_alerts_to_csv(self.csv_path)
+
+        self.assertEqual(
+            [r[3] for r in read_csv(self.csv_path)[1:]],
+            ["earliest", "later, same second, first id", "later, same second, second id"],
+        )
+
+    def test_export_does_not_change_get_alerts_order(self):
+        self._insert_at("2026-03-01 00:00:00", "old")
+        self._insert_at("2026-03-02 00:00:00", "new")
+
+        self.alert_mgr.export_alerts_to_csv(self.csv_path)
+
+        self.assertEqual([a['message'] for a in self.db.get_alerts()], ["new", "old"])
+
     def test_export_is_not_truncated_at_old_10000_limit(self):
         self.db._get_conn().executemany(
             "INSERT INTO alerts (alert_type, severity, message) VALUES (?,?,?)",
@@ -111,8 +151,9 @@ class TestExportAlertsToCsv(ExportTestCase):
 
 
 class TestExportCli(ExportTestCase):
-    """`main.py export PATH` - license and authorization gates are mocked at the
-    main.py boundary so no license server or interactive prompt is involved."""
+    """`main.py export PATH` - the license gate is mocked at the main.py boundary
+    so no license server is involved. require_authorization is deliberately NOT
+    stubbed: export must not prompt, and with no stdin any prompt would fail."""
 
     def setUp(self):
         super().setUp()
@@ -120,10 +161,9 @@ class TestExportCli(ExportTestCase):
         self.main = main
         self.runner = CliRunner()
 
-    def _invoke(self, path, license_valid=True, authorized=True):
+    def _invoke(self, path, license_valid=True):
         lic = MagicMock(is_valid=license_valid)
         with patch.object(self.main, "init_license", return_value=lic), \
-             patch.object(self.main, "require_authorization", return_value=authorized), \
              patch.object(self.main, "Database", return_value=self.db):
             return self.runner.invoke(self.main.cli, ["export", path])
 
@@ -138,20 +178,43 @@ class TestExportCli(ExportTestCase):
         self.assertIn("alerts.csv", result.output)
         self.assertEqual(len(read_csv(self.csv_path)), 3)
 
+    def test_export_runs_without_any_interactive_input(self):
+        self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "Database", return_value=self.db), \
+             patch.object(self.main, "require_authorization",
+                          wraps=self.main.require_authorization) as auth:
+            result = self.runner.invoke(self.main.cli, ["export", self.csv_path])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        auth.assert_not_called()
+        self.assertNotIn("authorization to monitor", result.output)
+        self.assertIn("Exported 1 alert(s)", result.output)
+        self.assertEqual(len(read_csv(self.csv_path)), 2)
+
     def test_invalid_license_blocks_export(self):
         self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
 
         result = self._invoke(self.csv_path, license_valid=False)
 
         self.assertEqual(result.exit_code, 1)
+        self.assertIn("LICENSE INVALID", result.output)
         self.assertFalse(os.path.exists(self.csv_path))
 
-    def test_declined_authorization_blocks_export(self):
-        result = self._invoke(self.csv_path, authorized=False)
+    def test_monitoring_commands_still_require_authorization(self):
+        # Proves the export change is scoped: `tui` still prompts, and a "no"
+        # stops it before any monitoring component is created.
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "require_authorization", return_value=False) as auth, \
+             patch.object(self.main, "init_components") as init_components:
+            result = self.runner.invoke(self.main.cli, ["tui"])
 
+        auth.assert_called_once_with()
+        init_components.assert_not_called()
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Authorization not confirmed", result.output)
-        self.assertFalse(os.path.exists(self.csv_path))
 
     def test_write_error_exits_non_zero(self):
         bad_path = os.path.join(self.tmpdir, "missing-dir", "alerts.csv")
