@@ -1,7 +1,6 @@
 """Module 3 - Encryption Auditor: WPA2/WPA3 check, WPS detection, security score."""
 
 import threading
-import time
 import subprocess
 import re
 
@@ -94,6 +93,7 @@ class EncryptionAuditor:
         self.alert_mgr = alert_mgr
         self.monitor_iface = monitor_iface
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
         self._seen: set = set()
         # _seen is checked-and-added from both the beacon-sniff thread
         # (_beacon_handler) and the main iwlist-scan loop (_process_iwlist_entry) -
@@ -104,6 +104,7 @@ class EncryptionAuditor:
 
     def start(self):
         self._running = True
+        self._stop_event.clear()
         if SCAPY_AVAILABLE:
             t = threading.Thread(target=self._sniff_beacons, daemon=True)
             self.threads.append(t)
@@ -112,10 +113,11 @@ class EncryptionAuditor:
         # Also use iwlist scan periodically as supplement
         while self._running:
             self._iwlist_scan()
-            time.sleep(60)
+            self._stop_event.wait(60)
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     def _sniff_beacons(self):
         # Retry with backoff instead of giving up permanently on the first
@@ -139,7 +141,7 @@ class EncryptionAuditor:
                 )
             if not self._running:
                 return
-            time.sleep(retry_delay)
+            self._stop_event.wait(retry_delay)
             retry_delay = min(retry_delay * 2, 60)
 
     def _beacon_handler(self, pkt):

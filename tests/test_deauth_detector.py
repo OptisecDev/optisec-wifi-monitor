@@ -161,7 +161,7 @@ class TestDeauthDetectorInterfaceUnavailable(unittest.TestCase):
                 detector._running = False
 
         with patch("modules.deauth_detector.sniff", side_effect=fake_sniff):
-            with patch("modules.deauth_detector.time.sleep", side_effect=fake_sleep):
+            with patch.object(detector._stop_event, "wait", side_effect=fake_sleep):
                 detector.start()  # must not raise, must not hang
 
         self.assertGreaterEqual(call_count["n"], 2)
@@ -183,10 +183,9 @@ class TestDeauthDetectorInterfaceUnavailable(unittest.TestCase):
         detector._running = True
 
         t = threading.Thread(target=detector._poll_fallback, daemon=True)
-        with patch("modules.deauth_detector.time.sleep", return_value=None):
-            t.start()
-            detector.stop()
-            t.join(timeout=2)
+        t.start()
+        detector.stop()
+        t.join(timeout=2)
 
         self.assertFalse(t.is_alive())
 

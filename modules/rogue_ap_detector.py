@@ -19,7 +19,6 @@ pipeline unchanged.
 """
 
 import threading
-import time
 from datetime import datetime, timedelta
 
 from core.oui_lookup import get_vendor_with_fallback
@@ -50,6 +49,7 @@ class RogueAPDetector:
         self.monitor_iface = monitor_iface
         self.attack_detector = attack_detector
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
 
         # Per-BSSID evaluation throttle to avoid a DB round-trip per beacon.
         self._last_eval: dict = {}
@@ -70,6 +70,7 @@ class RogueAPDetector:
 
     def start(self):
         self._running = True
+        self._stop_event.clear()
 
         if not self.is_enabled():
             self.alert_mgr.info("SYSTEM", "Rogue AP detector disabled via config - not starting")
@@ -102,16 +103,17 @@ class RogueAPDetector:
                 )
             if not self._running:
                 return
-            time.sleep(retry_delay)
+            self._stop_event.wait(retry_delay)
             retry_delay = min(retry_delay * 2, 60)
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     def _poll_fallback(self):
         """Minimal fallback when scapy is unavailable (permanent condition)."""
         while self._running:
-            time.sleep(10)
+            self._stop_event.wait(10)
 
     def _packet_handler(self, pkt):
         try:

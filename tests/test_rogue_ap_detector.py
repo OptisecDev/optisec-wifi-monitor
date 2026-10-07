@@ -244,7 +244,7 @@ class TestRogueAPDetectorInterfaceUnavailable(TempDbTestCase):
                 detector._running = False
 
         with patch("modules.rogue_ap_detector.sniff", side_effect=fake_sniff):
-            with patch("modules.rogue_ap_detector.time.sleep", side_effect=fake_sleep):
+            with patch.object(detector._stop_event, "wait", side_effect=fake_sleep):
                 detector.start()
 
         self.assertGreaterEqual(call_count["n"], 2)

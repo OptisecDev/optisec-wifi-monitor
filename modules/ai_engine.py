@@ -46,13 +46,15 @@ class AIEngine:
         self.config = config
         self.language = language
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
         self._latest_insights: dict = {}
 
     def start(self):
         self._running = True
+        self._stop_event.clear()
         interval = self.config.get("ai_report_interval", 300)
         while self._running:
-            time.sleep(interval)
+            self._stop_event.wait(interval)
             if self._running:
                 try:
                     self.generate_periodic_report()
@@ -61,6 +63,7 @@ class AIEngine:
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     # ── API dispatch ─────────────────────────────────────────────────────
 

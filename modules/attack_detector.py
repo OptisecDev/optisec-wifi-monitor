@@ -1,7 +1,6 @@
 """Module 2 - Attack Detector: Deauth flood, Evil Twin, ARP poisoning detection."""
 
 import threading
-import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 
@@ -22,6 +21,7 @@ class AttackDetector:
         self.alert_mgr = alert_mgr
         self.monitor_iface = monitor_iface
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
 
         # Deauth flood tracking: {src_mac: deque of timestamps}
         self._deauth_log: dict = defaultdict(lambda: deque())
@@ -37,6 +37,7 @@ class AttackDetector:
 
     def start(self):
         self._running = True
+        self._stop_event.clear()
         if not SCAPY_AVAILABLE:
             self.alert_mgr.low("SYSTEM", "Scapy not available - attack detection limited")
             self._poll_fallback()
@@ -62,16 +63,17 @@ class AttackDetector:
                 )
             if not self._running:
                 return
-            time.sleep(retry_delay)
+            self._stop_event.wait(retry_delay)
             retry_delay = min(retry_delay * 2, 60)
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     def _poll_fallback(self):
         """Minimal fallback when scapy is unavailable (permanent condition)."""
         while self._running:
-            time.sleep(10)
+            self._stop_event.wait(10)
 
     def _packet_handler(self, pkt):
         try:

@@ -2,7 +2,6 @@
 
 import re
 import threading
-import time
 import requests
 from collections import deque
 from datetime import datetime
@@ -26,6 +25,7 @@ class TelegramNotifier:
         self._medium_queue: deque = deque()
         self._lock = threading.Lock()
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
         self.threads: list = []  # joined by stop_all_components
 
     @property
@@ -43,12 +43,14 @@ class TelegramNotifier:
         if not self.is_configured():
             return
         self._running = True
+        self._stop_event.clear()
         t = threading.Thread(target=self._batch_loop, daemon=True)
         self.threads.append(t)
         t.start()
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -111,7 +113,8 @@ class TelegramNotifier:
 
     def _batch_loop(self):
         while self._running:
-            time.sleep(_BATCH_INTERVAL)
+            if self._stop_event.wait(_BATCH_INTERVAL):
+                break
             with self._lock:
                 if not self._medium_queue:
                     continue

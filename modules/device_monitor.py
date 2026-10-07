@@ -1,7 +1,6 @@
 """Module 1 - Device Monitor: passive scapy scan + active nmap, MAC whitelist, alerts."""
 
 import threading
-import time
 import subprocess
 import re
 from datetime import datetime
@@ -39,6 +38,7 @@ class DeviceMonitor:
         self.monitor_iface = monitor_iface
         self.internet_iface = internet_iface
         self._running = False
+        self._stop_event = threading.Event()  # wakes sleeping loops on stop()
         self._known_macs: set = set()
         self._lock = threading.Lock()
         self.threads: list = []  # joined by stop_all_components
@@ -57,6 +57,7 @@ class DeviceMonitor:
 
     def start(self):
         self._running = True
+        self._stop_event.clear()
         # Start passive scapy sniffer in background
         if SCAPY_AVAILABLE:
             t_passive = threading.Thread(target=self._passive_scan, daemon=True)
@@ -67,10 +68,11 @@ class DeviceMonitor:
         while self._running:
             self._active_nmap_scan()
             interval = self.config.get("scan_interval", 30)
-            time.sleep(interval)
+            self._stop_event.wait(interval)
 
     def stop(self):
         self._running = False
+        self._stop_event.set()
 
     def _get_vendor(self, mac: str) -> str:
         return get_vendor_with_fallback(mac, self._manuf)
@@ -146,7 +148,7 @@ class DeviceMonitor:
                 )
             if not self._running:
                 return
-            time.sleep(retry_delay)
+            self._stop_event.wait(retry_delay)
             retry_delay = min(retry_delay * 2, 60)
 
     def _active_nmap_scan(self):
