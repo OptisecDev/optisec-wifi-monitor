@@ -92,21 +92,49 @@ class AlertManager:
     def info(self, alert_type: str, message: str, details: str = None):
         return self.add(alert_type, "INFO", message, details)
 
-    def export_alerts_to_csv(self, filepath: str) -> int:
-        """Export the full alert log from the database to a CSV file.
+    def export_alerts_to_csv(self, filepath: str, alert_type: str = None, since: str = None) -> int:
+        """Export the alert log from the database to a CSV file, with optional filtering.
 
         Rows are written oldest first (by timestamp, then id). An empty log
         produces a file containing only the header row.
 
         Args:
             filepath: Path to the CSV file to create/replace.
+            alert_type: If provided, only export alerts of this type.
+            since: If provided, only export alerts on or after this ISO date string.
 
         Returns:
             Number of alert rows written (excluding the header).
+
+        Raises:
+            ValueError: If 'since' is not a valid ISO date string.
         """
         # SQLite treats a negative LIMIT as "no limit" - export the whole log
         # rather than silently truncating it.
         alerts = self.db.get_alerts(limit=-1)
+
+        # Apply filters
+        if alert_type is not None:
+            alerts = [a for a in alerts if a.get('alert_type') == alert_type]
+
+        if since is not None:
+            try:
+                since_dt = datetime.fromisoformat(since)
+            except ValueError as exc:
+                raise ValueError(f"Invalid ISO date string for 'since': {since}") from exc
+            # Filter alerts with timestamp >= since_dt
+            filtered = []
+            for a in alerts:
+                ts = a.get('timestamp')
+                if ts:
+                    try:
+                        if datetime.fromisoformat(ts) >= since_dt:
+                            filtered.append(a)
+                    except ValueError:
+                        # Skip alerts with unparseable timestamps
+                        continue
+            alerts = filtered
+
         # get_alerts() returns newest first for the dashboards; sort here rather
         # than relying on (or changing) that order. id breaks timestamp ties,
         # since CURRENT_TIMESTAMP only has one-second resolution.

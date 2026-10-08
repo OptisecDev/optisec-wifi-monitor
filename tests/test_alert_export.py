@@ -150,6 +150,74 @@ class TestExportAlertsToCsv(ExportTestCase):
         self.assertEqual(self.alert_mgr.export_alerts_to_csv(self.csv_path), 10005)
         self.assertEqual(len(read_csv(self.csv_path)), 10006)
 
+    def test_filter_by_alert_type(self):
+        self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
+        self.db.add_alert("WPS", "MEDIUM", "WPS enabled")
+        self.db.add_alert("ROGUE_AP", "CRITICAL", "Evil twin")
+
+        count = self.alert_mgr.export_alerts_to_csv(self.csv_path, alert_type="DEAUTH")
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(count, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][1], "DEAUTH")
+
+    def test_filter_by_since(self):
+        conn = self.db._get_conn()
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "old", "2026-01-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "recent", "2026-03-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "future", "2026-05-01 10:00:00"),
+        )
+        conn.commit()
+
+        count = self.alert_mgr.export_alerts_to_csv(self.csv_path, since="2026-02-01")
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(count, 2)
+        messages = [r[3] for r in rows]
+        self.assertIn("recent", messages)
+        self.assertIn("future", messages)
+        self.assertNotIn("old", messages)
+
+    def test_filter_by_type_and_since(self):
+        conn = self.db._get_conn()
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "DEAUTH old", "2026-01-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "DEAUTH recent", "2026-03-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("WPS", "MEDIUM", "WPS recent", "2026-04-01 10:00:00"),
+        )
+        conn.commit()
+
+        count = self.alert_mgr.export_alerts_to_csv(self.csv_path, alert_type="DEAUTH", since="2026-02-01")
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(count, 1)
+        self.assertEqual(rows[0][1], "DEAUTH")
+        self.assertEqual(rows[0][3], "DEAUTH recent")
+
+    def test_invalid_since_raises_valueerror(self):
+        with self.assertRaises(ValueError):
+            self.alert_mgr.export_alerts_to_csv(self.csv_path, since="not-a-date")
+
+    def test_default_filters_unchanged(self):
+        # When both alert_type and since are None, all alerts are exported.
+        self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
+        self.db.add_alert("WPS", "MEDIUM", "WPS enabled")
+        count = self.alert_mgr.export_alerts_to_csv(self.csv_path, alert_type=None, since=None)
+        self.assertEqual(count, 2)
+
 
 class TestExportCli(ExportTestCase):
     """`main.py export PATH` - the license gate is mocked at the main.py boundary
@@ -224,6 +292,85 @@ class TestExportCli(ExportTestCase):
 
         self.assertEqual(result.exit_code, 1)
         self.assertIn("Failed to write CSV", result.output)
+
+    def test_export_with_type_filter(self):
+        self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
+        self.db.add_alert("WPS", "MEDIUM", "WPS enabled")
+
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "Database", return_value=self.db):
+            result = self.runner.invoke(self.main.cli, ["export", "--type", "DEAUTH", self.csv_path])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Exported 1 alert(s)", result.output)
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][1], "DEAUTH")
+
+    def test_export_with_since_filter(self):
+        conn = self.db._get_conn()
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "old", "2026-01-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "recent", "2026-03-01 10:00:00"),
+        )
+        conn.commit()
+
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "Database", return_value=self.db):
+            result = self.runner.invoke(self.main.cli, ["export", "--since", "2026-02-01", self.csv_path])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Exported 1 alert(s)", result.output)
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(rows[0][3], "recent")
+
+    def test_export_with_both_filters(self):
+        conn = self.db._get_conn()
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "DEAUTH old", "2026-01-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("DEAUTH", "HIGH", "DEAUTH recent", "2026-03-01 10:00:00"),
+        )
+        conn.execute(
+            "INSERT INTO alerts (alert_type, severity, message, timestamp) VALUES (?,?,?,?)",
+            ("WPS", "MEDIUM", "WPS recent", "2026-04-01 10:00:00"),
+        )
+        conn.commit()
+
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "Database", return_value=self.db):
+            result = self.runner.invoke(
+                self.main.cli,
+                ["export", "--type", "DEAUTH", "--since", "2026-02-01", self.csv_path],
+            )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Exported 1 alert(s)", result.output)
+        rows = read_csv(self.csv_path)[1:]
+        self.assertEqual(rows[0][1], "DEAUTH")
+        self.assertEqual(rows[0][3], "DEAUTH recent")
+
+    def test_invalid_since_exits_nonzero(self):
+        self.db.add_alert("DEAUTH", "HIGH", "Deauth burst")
+
+        lic = MagicMock(is_valid=True)
+        with patch.object(self.main, "init_license", return_value=lic), \
+             patch.object(self.main, "Database", return_value=self.db):
+            result = self.runner.invoke(self.main.cli, ["export", "--since", "not-a-date", self.csv_path])
+
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("Invalid --since date", result.output)
+        self.assertFalse(os.path.exists(self.csv_path))
 
 
 if __name__ == "__main__":

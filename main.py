@@ -8,6 +8,7 @@ import logging
 import threading
 import signal
 import time
+from datetime import datetime
 
 import click
 from rich.console import Console
@@ -387,7 +388,9 @@ def configure():
 
 @cli.command()
 @click.argument('csv_path', type=click.Path(dir_okay=False))
-def export(csv_path):
+@click.option('--type', 'alert_type', default=None, help='Filter by alert type (e.g., DEAUTH, ROGUE_AP).')
+@click.option('--since', default=None, help='Export alerts on or after this ISO date (e.g., 2026-03-01).')
+def export(csv_path, alert_type, since):
     """Export the alert log to a CSV file at CSV_PATH."""
     print_banner()
     lic = init_license()
@@ -397,9 +400,17 @@ def export(csv_path):
     # prompt would block scripted/scheduled exports. The license check above
     # still applies because export is a feature of the licensed product.
 
+    # Validate --since if provided
+    if since:
+        try:
+            datetime.fromisoformat(since)
+        except ValueError:
+            console.print(f"[red]Invalid --since date: {since}. Use ISO format (e.g., 2026-03-01).[/red]")
+            sys.exit(1)
+
     with Database() as db:
         try:
-            count = AlertManager(db).export_alerts_to_csv(csv_path)
+            count = AlertManager(db).export_alerts_to_csv(csv_path, alert_type=alert_type, since=since)
         except (OSError, csv.Error) as exc:
             console.print(f"[red]✗  Failed to write CSV to {csv_path}: {exc}[/red]")
             sys.exit(1)
