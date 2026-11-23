@@ -1296,12 +1296,10 @@
           <div class="pay-title" data-en="Mastercard / Super Key" data-ar="ماستركارد / السوبر كي">Mastercard / Super Key</div>
           <div class="pay-sub" data-en="Direct card transfer — contact us to complete" data-ar="تحويل مباشر بالبطاقة — تواصل معنا لإتمامه">Direct card transfer — contact us to complete</div>
           <div class="pay-address">
-            <span id="cardNum" class="mono">Mastercard [REDACTED]</span>
-            <button class="copy-btn" onclick="copyAddr('cardNum',this)" data-en="Copy" data-ar="نسخ">Copy</button>
+            <span class="mono" data-en="Pay by Mastercard" data-ar="الدفع ببطاقة Mastercard">Pay by Mastercard</span>
           </div>
-          <div class="pay-holder" data-en="Cardholder: [REDACTED]" data-ar="حامل البطاقة: إحسان علي عطية">Cardholder: [REDACTED]</div>
-          <div class="pay-contact" data-en="Contact us by email to complete payment transfer" data-ar="تواصل معنا عبر البريد الإلكتروني لإتمام تحويل الدفع">
-            Contact us by email to complete payment transfer
+          <div class="pay-contact" data-en="Contact us via the support page to complete payment" data-ar="تواصل معنا عبر صفحة الدعم لإتمام الدفع">
+            Contact us via the support page to complete payment
           </div>
         </div>
 
@@ -1415,26 +1413,24 @@
         <span data-en="Send only the last 8 characters of your transaction hash via GitHub Issues. Do not post full proof or screenshots publicly. " data-ar="أرسل آخر 8 خانات من هاش المعاملة فقط عبر GitHub Issues. لا تنشر الإثبات الكامل أو لقطات الشاشة في أي مكان عام. ">Send only the last 8 characters of your transaction hash via GitHub Issues. Do not post full proof or screenshots publicly. </span>
         <a class="email-link" id="mEmailUsdt" href="#" target="_blank" rel="noopener" data-en="Support" data-ar="الدعم">Support</a>
       </p>
-      <a class="modal-email-btn" id="mEmailBtnUsdt" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+      <a class="modal-email-btn" id="mEmailBtnUsdt" href="https://github.com/OptisecDev/optisec-wifi-monitor/issues" target="_blank" rel="noopener" data-en="Open Support Page" data-ar="فتح صفحة الدعم">Open Support Page</a>
     </div>
 
     <!-- Card pane -->
     <div class="modal-pane" id="pane-card">
-      <p class="modal-note" data-en="Transfer the exact amount to this Mastercard:" data-ar="حوّل المبلغ الدقيق إلى بطاقة الماستركارد هذه:">
-        Transfer the exact amount to this Mastercard:
+      <p class="modal-note" data-en="Pay by Mastercard — contact us via the support page to arrange the transfer." data-ar="الدفع ببطاقة Mastercard — تواصل معنا عبر صفحة الدعم لترتيب التحويل.">
+        Pay by Mastercard — contact us via the support page to arrange the transfer.
       </p>
-      <div class="modal-addr mono">Mastercard [REDACTED]</div>
-      <div class="modal-holder-line" data-en="Cardholder: [REDACTED]" data-ar="حامل البطاقة: إحسان علي عطية">Cardholder: [REDACTED]</div>
       <p class="modal-note">
         <span data-en="Send only the last 8 characters of your transaction hash via GitHub Issues. Do not post full proof or screenshots publicly. " data-ar="أرسل آخر 8 خانات من هاش المعاملة فقط عبر GitHub Issues. لا تنشر الإثبات الكامل أو لقطات الشاشة في أي مكان عام. ">Send only the last 8 characters of your transaction hash via GitHub Issues. Do not post full proof or screenshots publicly. </span>
         <a class="email-link" id="mEmailCard" href="#" target="_blank" rel="noopener" data-en="Support" data-ar="الدعم">Support</a>
       </p>
-      <a class="modal-email-btn" id="mEmailBtnCard" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
+      <a class="modal-email-btn" id="mEmailBtnCard" href="https://github.com/OptisecDev/optisec-wifi-monitor/issues" target="_blank" rel="noopener" data-en="Open Support Page" data-ar="فتح صفحة الدعم">Open Support Page</a>
     </div>
 
-    <p class="modal-footer-note" data-en="Include product name in subject. License delivered within 24h."
-       data-ar="أدرج اسم المنتج في الموضوع. يُسلَّم الترخيص خلال 24 ساعة.">
-      Include product name in subject. License delivered within 24h.
+    <p class="modal-footer-note" data-en="License delivered within 24h."
+       data-ar="يُسلَّم الترخيص خلال 24 ساعة.">
+      License delivered within 24h.
     </p>
   </div>
 </div>
@@ -1495,8 +1491,6 @@ function updateEmailLinks() {
   const p = PRODUCTS[activeProduct];
   const name  = p[lang];
   const price = p.price;
-  const sub   = encodeURIComponent('Purchase: ' + name + ' — ' + price);
-  const body  = encodeURIComponent('Hi OPTISEC,\n\nI have completed payment for ' + name + ' (' + price + ').\n\nTransaction details:\n[Paste TX hash or screenshot reference here]\n\nThank you.');
   const href  = SUPPORT_URL;
   document.getElementById('mEmailUsdt').href    = href;
   document.getElementById('mEmailBtnUsdt').href = href;
