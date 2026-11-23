@@ -1329,7 +1329,7 @@
             <div class="pay-step-title" data-en="Email your transaction proof" data-ar="أرسل إثبات المعاملة بالبريد الإلكتروني">Email your transaction proof</div>
             <div class="pay-step-desc">
               <span data-en="Send screenshot or TX hash to " data-ar="أرسل لقطة شاشة أو رمز المعاملة إلى ">Send screenshot or TX hash to </span>
-              <a class="email-link" href="mailto:ahssanali84.syber@gmail.com">ahssanali84.syber@gmail.com</a>
+              <a class="email-link" href="https://github.com/OptisecDev/optisec-wifi-monitor/issues" target="_blank" rel="noopener" data-en="Support" data-ar="الدعم">Support</a>
               <span data-en=" — include the product name in subject." data-ar=" — أدرج اسم المنتج في موضوع الرسالة."> — include the product name in subject.</span>
             </div>
           </div>
@@ -1386,7 +1386,7 @@
     <a href="#payment"  data-en="Payment"     data-ar="الدفع">Payment</a>
     <a href="#verify"   data-en="Verify"      data-ar="التحقق">Verify</a>
     <a href="https://github.com/ahssanali84syber-boop" target="_blank" rel="noopener">GitHub</a>
-    <a href="mailto:ahssanali84.syber@gmail.com" data-en="Contact" data-ar="تواصل معنا">Contact</a>
+    <a href="https://github.com/OptisecDev/optisec-wifi-monitor/issues" target="_blank" rel="noopener" data-en="Contact" data-ar="تواصل معنا">Contact</a>
   </div>
   <p class="footer-copy" data-en="© 2026 OPTISEC. All rights reserved. Professional Cybersecurity Tools."
      data-ar="© 2026 أوبتيسيك. جميع الحقوق محفوظة. أدوات الأمن السيبراني الاحترافية.">
@@ -1414,7 +1414,7 @@
       <div class="modal-addr mono">TShsu3QDcEwdH3bogFCLPAYJsXZVxG6cho</div>
       <p class="modal-note" style="margin-top:12px;">
         <span data-en="After sending, email your TX hash to " data-ar="بعد الإرسال، أرسل رمز المعاملة إلى ">After sending, email your TX hash to </span>
-        <a class="email-link" id="mEmailUsdt" href="#">ahssanali84.syber@gmail.com</a>
+        <a class="email-link" id="mEmailUsdt" href="#" target="_blank" rel="noopener" data-en="Support" data-ar="الدعم">Support</a>
       </p>
       <a class="modal-email-btn" id="mEmailBtnUsdt" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
     </div>
@@ -1428,7 +1428,7 @@
       <div class="modal-holder-line" data-en="Cardholder: [REDACTED]" data-ar="حامل البطاقة: إحسان علي عطية">Cardholder: [REDACTED]</div>
       <p class="modal-note">
         <span data-en="After transfer, email proof to " data-ar="بعد التحويل، أرسل الإثبات إلى ">After transfer, email proof to </span>
-        <a class="email-link" id="mEmailCard" href="#">ahssanali84.syber@gmail.com</a>
+        <a class="email-link" id="mEmailCard" href="#" target="_blank" rel="noopener" data-en="Support" data-ar="الدعم">Support</a>
       </p>
       <a class="modal-email-btn" id="mEmailBtnCard" href="#" data-en="📧 Open Email Client" data-ar="📧 فتح برنامج البريد">📧 Open Email Client</a>
     </div>
@@ -1476,7 +1476,7 @@ const PRODUCTS = {
   wifi: { en: 'OPTISEC WiFi Monitor', ar: 'مراقب WiFi أوبتيسيك', price: '$299' },
   soc:  { en: 'OPTISEC SOC Platform', ar: 'منصة SOC أوبتيسيك',   price: '$99'  },
 };
-const SUPPORT_EMAIL = 'ahssanali84.syber@gmail.com';
+const SUPPORT_URL = 'https://github.com/OptisecDev/optisec-wifi-monitor/issues';
 
 let activeProduct = null;
 
@@ -1498,7 +1498,7 @@ function updateEmailLinks() {
   const price = p.price;
   const sub   = encodeURIComponent('Purchase: ' + name + ' — ' + price);
   const body  = encodeURIComponent('Hi OPTISEC,\n\nI have completed payment for ' + name + ' (' + price + ').\n\nTransaction details:\n[Paste TX hash or screenshot reference here]\n\nThank you.');
-  const href  = 'mailto:' + SUPPORT_EMAIL + '?subject=' + sub + '&body=' + body;
+  const href  = SUPPORT_URL;
   document.getElementById('mEmailUsdt').href    = href;
   document.getElementById('mEmailBtnUsdt').href = href;
   document.getElementById('mEmailCard').href    = href;
