@@ -17,7 +17,7 @@
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Platform](https://img.shields.io/badge/Platform-BlackArch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://blackarch.org)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-00ff88?style=for-the-badge)](https://github.com/ahssanali84syber-boop/optisec-wifi-monitor)
+[![Version](https://img.shields.io/badge/Version-1.0.0-00ff88?style=for-the-badge)](https://github.com/OptisecDev/optisec-wifi-monitor)
 [![AI](https://img.shields.io/badge/AI-Groq_llama--3.3--70b-ff6b35?style=for-the-badge)](https://groq.com)
 [![Price](https://img.shields.io/badge/License-$299_one--time-gold?style=for-the-badge)](https://optisecdev.github.io/optisec-wifi-monitor/)
 
@@ -89,7 +89,7 @@ manuf >= 1.1.5       # MAC vendor lookup
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/ahssanali84syber-boop/optisec-wifi-monitor.git
+git clone https://github.com/OptisecDev/optisec-wifi-monitor.git
 cd optisec-wifi-monitor
 ```
 
