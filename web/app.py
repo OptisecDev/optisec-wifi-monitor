@@ -1,6 +1,7 @@
 """Flask web dashboard for Optisec WiFi Monitor."""
 
 import json
+import os
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, redirect, url_for
@@ -21,7 +22,13 @@ def _json_error_guard(fn):
 
 def create_app(components: dict) -> Flask:
     app = Flask(__name__, template_folder='templates', static_folder='static')
-    app.secret_key = 'optisec-wifi-monitor-secret-key-2024'
+    app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+    if not app.secret_key:
+        raise RuntimeError(
+            "FLASK_SECRET_KEY is not set. Generate one with:\n"
+            "  python -c \"import secrets; print(secrets.token_hex(32))\"\n"
+            "then export it before starting the web dashboard."
+        )
 
     db = components['db']
     config = components['config']

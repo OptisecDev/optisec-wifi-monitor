@@ -21,7 +21,7 @@
 [![AI](https://img.shields.io/badge/AI-Groq_llama--3.3--70b-ff6b35?style=for-the-badge)](https://groq.com)
 [![Price](https://img.shields.io/badge/License-$299_one--time-gold?style=for-the-badge)](https://optisecdev.github.io/optisec-wifi-monitor/)
 
-[🌐 Sales Page](https://optisecdev.github.io/optisec-wifi-monitor/) · [📧 Support](mailto:ahssanali84.syber@gmail.com) · [🐛 Issues](https://github.com/ahssanali84syber-boop/optisec-wifi-monitor/issues)
+[🌐 Sales Page](https://optisecdev.github.io/optisec-wifi-monitor/) · [🐛 Support / Issues](https://github.com/OptisecDev/optisec-wifi-monitor/issues) · [🔒 Security](SECURITY.md)
 
 </div>
 
@@ -117,6 +117,16 @@ sudo airmon-ng start wlan1
 ```bash
 sudo python main.py config
 ```
+
+### 5. Set `FLASK_SECRET_KEY` (required for the web dashboard)
+
+The web dashboard refuses to start without a session signing key. Generate a random value and export it:
+
+```bash
+export FLASK_SECRET_KEY="$(python -c "import secrets; print(secrets.token_hex(32))")"
+```
+
+Keep this value private and stable across restarts (changing it invalidates existing sessions). When running with `sudo`, use `sudo -E` or `sudo FLASK_SECRET_KEY=... python main.py web ...` so the variable is passed through.
 
 ---
 
@@ -307,6 +317,8 @@ copied-to-another-machine file is rejected rather than accepted.
 **Built for security professionals. Authorized defense use only.**
 
 [![Buy License](https://img.shields.io/badge/Buy_License-$299_One--Time-00ff88?style=for-the-badge)](https://optisecdev.github.io/optisec-wifi-monitor/)
-[![Email Support](https://img.shields.io/badge/Email-Support-blue?style=for-the-badge&logo=gmail)](mailto:ahssanali84.syber@gmail.com)
+[![Support](https://img.shields.io/badge/Support-GitHub_Issues-blue?style=for-the-badge&logo=github)](https://github.com/OptisecDev/optisec-wifi-monitor/issues)
+
+For support questions, open a [GitHub Issue](https://github.com/OptisecDev/optisec-wifi-monitor/issues). To report a vulnerability, follow [SECURITY.md](SECURITY.md) — do not file security issues publicly.
 
 </div>
